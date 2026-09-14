@@ -1,10 +1,26 @@
 # Sib: a standard Unix LLM client
 
-I like Git a bit too much, so Sib stores LLM conversations using Git
-itself instead of SQLite. Your store is a plain Git repository, and
-each user and assistant turn is a commit.
+Sib is a git-based LLM client. Each conversation is a Git commit
+(literally). Conversations are saved by default, you can fork from
+anywhere, [fetch others' conversation and continue from it](#sharing),
+[push yours to any git repository](#sharing)... and more.
 
-- [Tutorial](./Documentation/Tutorial.md)
+Typical usage:
+
+    echo 'Why did Evangelion 3.0 suddenly go off the rails?' | sib ask
+    sib log
+    echo 'Which of those two reasons matters more?' | sib ask
+
+Now, the store looks like this:
+
+    * fa754c HEAD~3 {"role":"user", "content":"Why did Evangelion 3.0 suddenly ..."}
+    * b16df7 HEAD~2 {"role":"assistant", "content":"Because *Evangelion 3.0: You ..."}
+    * 1c2e90 HEAD~1 {"role":"user", "content":"Which of those two reasons matters ..."}
+    * 280f09 HEAD   {"role":"assistant", "content":"The **intentional creative ..."}
+
+This is the overall concept. But [why?](./Documentation/Tutorial.md)
+
+- [tutorial](./Documentation/Tutorial.md)
 - [Quickstart](#quickstart)
 - [Tips](#tips)
 - [Hacking](#hacking)
@@ -81,11 +97,11 @@ The reverse works too:
 
     sib git push <your-repo-url> <local-ref>:refs/heads/<remote-ref>
 
-Wanna share yours with random internet dudes? In fact, you can publish
-to [sib-project/hub](https://github.com/sib-project/hub) too. Push to
-any public git repo as above and [open a share
+Wanna share yours with random internet dudes? Publish to
+[sib-project/hub](https://github.com/sib-project/hub). Push to any
+public git repo as above and [open a share
 issue](https://github.com/sib-project/hub/issues/new?template=share.yml). It
-will be automatically published.
+will be automatically published to there.
 
 ### Usage of sib ask
 
@@ -113,24 +129,24 @@ If you need Markdown rendering:
     sib log | glow -p
 
 Or inside neovim:
-```sh
-{ echo Write a code which do same thing in neovim lua; echo; cat <<EOF
-(defun sib-log ()
-  (interactive)
-  (require 'markdown-mode)
 
-  (let ((buf (get-buffer-create "*sib*"))
-        (err (get-buffer-create "*sib-error*")))
-    (async-shell-command "sib log" buf err)
+    { echo Write a code which do same thing in neovim lua; echo; cat <<EOF
+    (defun sib-log ()
+      (interactive)
+      (require 'markdown-mode)
 
-    (with-current-buffer buf
-      (markdown-mode)
-      (font-lock-ensure))
+      (let ((buf (get-buffer-create "*sib*"))
+            (err (get-buffer-create "*sib-error*")))
+        (async-shell-command "sib log" buf err)
 
-    (pop-to-buffer buf)))
-EOF
-} | sib ask -n
-```
+        (with-current-buffer buf
+          (markdown-mode)
+          (font-lock-ensure))
+
+        (pop-to-buffer buf)))
+    EOF
+    } | sib ask -n
+
 
 To save you API usage, I've already done it for you. Set it up with
 the following commands:
@@ -152,7 +168,7 @@ any turn, refactor it with AI, and upload an improved version.
 ## Hacking
 
 `sib <cmd>` execs `sib-<cmd>` from `PATH`. Every command you have used
-so far is just that: a script sitting next to the dispatcher.
+so far is just that.
 
 So is yours. The hub URL above is too long to type twice:
 
@@ -175,18 +191,13 @@ map (`role`, `content`, `model`, ...) whose values are blobs.
     sib rev-parse / show-ref / update-ref / ls-refs / symbolic-ref
     sib git ...                   raw git on the store
 
-There are other commands, but for now, the above is all you need to
-know.
-
-- A manual page is planned; if you want to write it first, see
-  [contribute](CONTRIBUTING.md).
-- The [sib-ask](./sib-ask) code (49 lines excluding flag parsing)
-  will also help.
+The [sib-ask](./sib-ask) code (49 lines excluding flag parsing) will
+also help.
 
 These resources are not fully documented yet, so some of it may not be
 obvious. Please feel free to ask about it via
-[email](mailto:sib-project@dilluti0n.com) or issue tracker at any
-time.
+[email](mailto:sib-project@dilluti0n.com) or [issue
+tracker](https://github.com/sib-project/sib/issues).
 
 ### Minimum rules for compatibility
 
