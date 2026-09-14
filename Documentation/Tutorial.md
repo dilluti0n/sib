@@ -86,6 +86,9 @@ not. For that reason,
 
 prints the status information.
 
+Finally, if you want to start new conversation, use `-n`. It sets
+empty parent.
+
 Understanding this data model natively gives you every feature an LLM
 client needs -- including [backup and
 sharing](../README.md#tips). Other tools ship these as separate,
