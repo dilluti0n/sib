@@ -33,10 +33,10 @@ Dependencies are bash >= 3.2, git, [jq](https://jqlang.org/), curl,
 awk and coreutils.
 
 Download [release
-tarball](https://github.com/sib-project/sib/releases/latest) or clone
+tarball](https://github.com/dilluti0n/sib/releases/latest) or clone
 this repo:
 
-    git clone https://github.com/sib-project/sib
+    git clone https://git.dilluti0n.com/sib.git
 
 Global install:
 
@@ -197,7 +197,7 @@ also help.
 These resources are not fully documented yet, so some of it may not be
 obvious. Please feel free to ask about it via
 [email](mailto:sib-project@dilluti0n.com) or [issue
-tracker](https://github.com/sib-project/sib/issues).
+tracker](https://github.com/dilluti0n/sib/issues).
 
 ### Minimum rules for compatibility
 
