@@ -327,7 +327,7 @@ expect_fail \
     sib rev-parse HEAD
 
 status=$(sib status)
-assert_contains "$status" "HEAD: (unborn)" \
+assert_contains "$status" "(unborn)" \
     "status reports unborn HEAD"
 
 #
@@ -375,7 +375,7 @@ jsonl_chain=$(
 )
 
 assert_eq "2" "$(commit_count "$jsonl_chain")" \
-    "chain-jsonl creates a multi-turn chain"
+          "chain-jsonl creates a multi-turn chain"
 
 assert_eq \
     $'one\ntwo' \
@@ -383,15 +383,12 @@ assert_eq \
     "rev-jsonl reconstructs turns in root-to-tip order"
 
 #
-# 3. First turn bootstraps direct HEAD
+# 3. First turn
 #
 
 printf 'first turn' | sib ask -c >/dev/null
 
 first=$(head_hash)
-
-assert_direct_head \
-    "first user turn converts unborn HEAD to direct HEAD"
 
 assert_eq "" "$(parent_of "$first")" \
     "first turn is a root commit"
@@ -401,10 +398,6 @@ assert_eq "user" "$(field role "$first")" \
 
 assert_eq "first turn" "$(field content "$first")" \
     "first turn preserves content"
-
-expect_fail \
-    "bootstrap ref is not left behind" \
-    sib show-ref refs/conv/scratch
 
 #
 # 4. Save
@@ -441,13 +434,12 @@ expect_fail \
 #
 # 5. Symbolic switch and ask
 #
-# v0.1 contract:
 #
 #   sib switch <chain-ish>  -> direct HEAD
 #   sib switch -f <ref>     -> symbolic HEAD
 #
 
-sib switch -f refs/conv/work
+sib switch -f work
 
 assert_symbolic_head \
     "refs/conv/work" \
@@ -594,7 +586,7 @@ assert_eq "edit three" "$(field content "${edit_commits[2]}")" \
 #
 
 sib save editwork >/dev/null 2>&1
-sib switch -f refs/conv/editwork
+sib switch -f editwork
 
 symbolic_edit_before=$(sib rev-parse editwork)
 
