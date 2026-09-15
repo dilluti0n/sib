@@ -38,18 +38,21 @@ shift $((OPTIND - 1))
 
 [[ -n $ref ]] && sib save -- "$ref"
 
-# An unborn HEAD has no parent. The first update should detach HEAD
-sib rev-parse HEAD &>/dev/null || {
-    noderef=--no-deref
-    [[ $parent == HEAD ]] && parent=
-}
-
 if [[ -z $parent ]]; then
     # -n is set, should detach HEAD to not taint existing ref
     noderef=--no-deref
-else
-    tmp=$(sib rev-parse "$parent") || die bad parent: $parent
+elif tmp=$(sib rev-parse "$parent" 2>/dev/null); then
     parent=$tmp
+elif [[ $parent == HEAD ]]; then
+    # An unborn HEAD has no parent. Follow it only if it points to a
+    # symbolic ref made by `sib switch -f'.
+    parent=
+    case $(sib symbolic-ref -q HEAD) in
+        refs/conv/*) ;;
+        *) noderef=--no-deref ;;
+    esac
+else
+    die "bad parent: $parent"
 fi
 
 if [[ -z $resend ]]; then

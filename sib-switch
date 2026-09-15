@@ -36,13 +36,26 @@ chain="$1"
 
 [[ -n $refname ]] && sib save "$refname"
 
-is_ref() {
-    sib show-ref "$1" >/dev/null 2>&1
+is_head_rev() {
+    local b=${1%%[~^:]*}
+    b=${b%%@\{*}
+    case $b in
+        HEAD|@|'') return 0 ;;
+    esac
+    return 1
+}
+
+# xxx, conv/xxx, refs/conv/xxx -> refs/conv/xxx
+conv_ref() {
+    local r=${1#refs/}
+    printf 'refs/conv/%s\n' "${r#conv/}"
 }
 
 if [[ -n $symbolic ]]; then
-    is_ref "$chain" || die "-f set but $chain is not ref"
-    sib symbolic-ref -m "switch to symbolic $chain" HEAD "$chain"
+    is_head_rev "$chain" && die "-f: $chain is not ref"
+    target=$(conv_ref "$chain")
+    sib symbolic-ref -m "switch to symbolic $chain" HEAD "$target" ||
+        die "invalid name: $chain"
     echo "HEAD now followes $chain" >&2
 else
     res=$(sib rev-parse "$chain" 2>/dev/null) || die "$chain is invalid"

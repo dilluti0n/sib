@@ -14,7 +14,7 @@ printf 'PLM_ENDPOINT: %s\n' "$PLM_ENDPOINT"
 
 printf '\n'
 if [[ -z $head_hash ]]; then
-    printf 'HEAD: (unborn)\n'
+    printf 'HEAD: %s(unborn)\n' "${head_ref:+$head_ref }"
     exit
 fi
 
