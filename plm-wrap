@@ -7,11 +7,13 @@ set -euo pipefail
 
 NAME=$(basename -- "$0")
 
+die() {
+    printf 'err: %s\n' "$1" >&2
+    exit 2
+}
+
 usage() {
-    echo "Usage: $NAME [-f,--from <text|plm|response>] \
-[-t,--to <plm|text|request>] \
-[-r,--role <system|user|assistant|tool>] \
-[-m MODEL]" >&2
+    echo "Usage: $NAME [-hS] [-f <text|plm|response>] [-t <plm|text|request>] [-r <system|user|assistant|tool>] [-m MODEL]" >&2
 }
 
 PLM_MODEL="${PLM_MODEL:-gpt-4o-mini}"
@@ -20,22 +22,18 @@ PLM_USE_STREAM="${PLM_USE_STREAM:-true}"
 source_format="text"
 dest_format="plm"
 
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        -r|--role)  PLM_ROLE="$2"; shift 2 ;;
-        -m|--model) PLM_MODEL="$2"; shift 2 ;;
-        -f|--from)  source_format="$2"; shift 2 ;;
-        -t|--to)    dest_format="$2"; shift 2 ;;
-        --no-stream) PLM_USE_STREAM='false'; shift 1 ;;
-        -h|--help)  usage 2>&1; exit 0 ;;
-        *)          usage; exit 1 ;;
+while getopts hr:m:f:t:S o; do
+    case $o in
+        h) usage 2>&1; exit 0 ;;
+        r) PLM_ROLE="$OPTARG" ;;
+        m) PLM_MODEL="$OPTARG" ;;
+        f) source_format="$OPTARG" ;;
+        t) dest_format="$OPTARG" ;;
+        S) PLM_USE_STREAM='false' ;;
+        *) usage; exit 1 ;;
     esac
 done
-
-die() {
-    printf 'err: %s\n' "$1" >&2
-    exit 2
-}
+shift $((OPTIND - 1))
 
 text_to_plm() {
     jq -Rs --arg role "${PLM_ROLE:-user}" '{role:$role, content:.}' | jq -c .
