@@ -4,7 +4,12 @@
 
 set -euo pipefail
 
-. lib.bash
+NAME="$(basename -- "$0")"
+
+die() {
+    [ $# -eq 0 ] || echo fatal: "$@" >&2
+    exit 1
+}
 
 usage() {
     cat <<EOF

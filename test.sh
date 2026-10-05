@@ -170,11 +170,7 @@ mkdir -p "$RUNTIME"
 [[ -f "$SOURCE_DIR/sib" ]] ||
     fail "cannot find $SOURCE_DIR/sib"
 
-[[ -f "$SOURCE_DIR/lib.bash" ]] ||
-    fail "cannot find $SOURCE_DIR/lib.bash"
-
 cp "$SOURCE_DIR/sib" "$RUNTIME/"
-cp "$SOURCE_DIR/lib.bash" "$RUNTIME/"
 
 for program in "$SOURCE_DIR"/sib-*; do
     [[ -f $program ]] || continue

@@ -4,7 +4,12 @@
 
 set -euo pipefail
 
-. lib.bash
+NAME="$(basename -- "$0")"
+
+die() {
+    [ $# -eq 0 ] || echo fatal: "$@" >&2
+    exit 1
+}
 
 chain_ish="${1:-HEAD}"
 chain=$(sib rev-parse "$chain_ish")

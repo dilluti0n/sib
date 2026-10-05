@@ -1,6 +1,6 @@
 PREFIX := /usr/local
 
-SIB = $(filter-out %.tar.gz, $(wildcard sib-*)) sib lib.bash
+SIB = $(filter-out %.tar.gz, $(wildcard sib-*)) sib
 PLM = $(wildcard plm-*)
 VERSION = $(shell cat VERSION)
 PN = sib-${VERSION}
