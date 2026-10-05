@@ -68,10 +68,9 @@ Change the endpoint/model (defaults work out of the box for openai).
     sib config set sib.endpoint https://api.cyberdyne.com/v1/responses
     sib config set sib.model skynet-101-arnold
 
-Export the API key:
+Export the API key (Add it to ~/.bashrc to make it persist):
 
-    export PLM_API_KEY='sk-xxxxxx' # Add this to ~/.bashrc to make it persist
-    export OPENAI_API_KEY='sk-xxxxxx' # This also works
+    export PLM_API_KEY='sk-xxxxxx'
 
 Ask something:
 

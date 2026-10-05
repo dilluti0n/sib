@@ -1,12 +1,7 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
 
 NAME=$(basename -- "$0")
-
-usage() {
-    echo "usage: ${NAME} [--no-auth] [-e|--endpoint ENDPOINT] [-h|--help]\
-set PLM_API_KEY for authentication with ENDPOINT server";
-}
 
 # print message to fd 3, response to stdout
 # If fd 3 is not open, fall back to stderr
@@ -60,40 +55,18 @@ stream() {
        "$response_file" >&3
 }
 
-main () {
-    local endpoint="${PLM_ENDPOINT:-https://api.openai.com/v1/responses}"
-    local retry="${PLM_RETRY:-3}"
-    local api_key_required="${PLM_API_KEY_REQUIRED:-1}"
-    local api_key="${PLM_API_KEY:-"${OPENAI_API_KEY:-}"}"
+: "${PLM_ENDPOINT:?PLM_ENDPOINT is not set}"
 
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            -e|--endpoint) endpoint="$2"; shift 2;;
-            --no-auth)     api_key_required='0'; shift;;
-            -h|--help)     usage; exit 0;;
-            *)             echo "unknown arg: $1" >&2; usage; exit 1;;
-        esac
-    done
+retry="${PLM_RETRY:-3}"
+auth_header=()
+[[ -n ${PLM_API_KEY:-} ]] && auth_header=(-H "Authorization: Bearer ${PLM_API_KEY}")
 
-    local auth_header=()
+request_file=$(mktemp)
+trap "rm -f '$request_file'" RETURN
 
-    if (( api_key_required != 0 )); then
-        if [[ -z "${api_key:-}" ]]; then
-            echo "${NAME}: missing both PLM_API_KEY and OPENAI_API_KEY" >&2
-            exit 2
-        fi
-        auth_header=(-H "Authorization: Bearer ${api_key}")
-    fi
+read request_file
 
-    local request_file=$(mktemp)
-    trap "rm -f '$request_file'" RETURN
-
-    local use_stream="$(tee "$request_file" | jq .stream)"
-
-    curl -sS -N "$endpoint" \
-         -H "Content-Type: application/json" "${auth_header[@]}" \
-         --retry "$retry" --retry-delay 1 \
-         --data-binary @"$request_file" | stream "$use_stream"
-}
-
-main "$@"
+curl -sS -N "$PLM_ENDPOINT" \
+     -H "Content-Type: application/json" "${auth_header[@]}" \
+     --retry "$retry" --retry-delay 1 \
+     --data-binary @"$request_file" | stream
