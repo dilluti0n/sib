@@ -1,72 +1,79 @@
 #!/usr/bin/env bash
-set -uo pipefail
+set -o pipefail
 
-NAME=$(basename -- "$0")
+: "${PLM_ENDPOINT:?PLM_ENDPOINT is not set}"
 
-# print message to fd 3, response to stdout
-# If fd 3 is not open, fall back to stderr
-ensure_human_fd() {
-    if ! { : >&3; } 2>/dev/null; then
-        exec 3>&2
+# print message to fd 3, response to stdout; fall back to stderr
+{ : >&3; } 2>/dev/null || exec 3>&2
+
+auth_header=()
+[[ -n ${PLM_API_KEY:-} ]] && auth_header=(-H "Authorization: Bearer ${PLM_API_KEY}")
+
+curl -sS -N -i "$PLM_ENDPOINT" -H "Content-Type: application/json" "${auth_header[@]}" \
+     --retry "${PLM_RETRY:-3}" --retry-delay 1 --data-binary @- | {
+    shopt -s nocasematch
+
+    # HTTP headers; skip 1xx interim responses
+    status= ctype=
+    while IFS= read -r line; do
+        line=${line%$'\r'}
+        case $line in
+            HTTP/*)         status=${line#* }; status=${status%% *} ;;
+            content-type:*) ctype=${line#*:}; ctype=${ctype# } ;;
+            '')             [[ $status == 1* ]] || break ;;
+        esac
+    done
+
+    if [[ $status != 2* ]]; then
+        echo "Non-successful response: HTTP $status" >&2
+        printf '%s\n' "$(cat)" >&3
+        exit 1
     fi
-}
 
-# print message to fd 3, response to stdout
-stream() {
-    if [[ "$1" == "true" ]]; then
-        while IFS= read -r line; do
-            [[ -z "$line" ]] && continue
+    case $ctype in
+        application/json*)
+            res=$(cat)
+            printf '%s\n' "$res"
+            jq -r '.output[]? | select(.type == "message") | .content[0].text' <<<"$res" >&3
+            exit
+            ;;
+        text/event-stream*) ;;
+        *)
+            echo "unexpected content-type: ${ctype:-(none)}" >&2
+            printf '%s\n' "$(cat)" >&3
+            exit 1
+            ;;
+    esac
 
-            if [[ "$line" == event:* ]]; then
-                local current_event=${line#event: }
-                continue
-            fi
-
-            if [[ "$line" == data:* ]]; then
-                local payload=${line#data: }
-                case "$current_event" in
+    current_event=
+    { printf '%s\n' "$line"; cat; } | while IFS= read -r line; do
+        line=${line%$'\r'}
+        case $line in
+            event:*)
+                current_event=${line#event:}
+                current_event=${current_event# }
+                ;;
+            data:*)
+                payload=${line#data:}
+                payload=${payload# }
+                case $current_event in
                     response.output_text.delta)
-                        jq -rj '.delta // empty' <<< "$payload" >&3
+                        jq -rj '.delta // empty' <<<"$payload" >&3
                         ;;
                     response.output_text.done)
                         printf '\n' >&3
                         ;;
                     response.completed)
-                        jq '.response' <<< "$payload"
+                        jq '.response' <<<"$payload"
                         ;;
                     *)
-                        if [[ -n "${PLM_DEBUG:-}" ]]; then
+                        if [[ -n ${PLM_DEBUG:-} ]]; then
                             echo "event: $current_event" >&3
                             echo "data: $payload" >&3
                         fi
                         ;;
                 esac
-            fi
-        done
-
-        exit 0;
-    fi
-
-    local response_file=$(mktemp)
-    trap "rm -f '$response_file'" RETURN
-
-    tee "$response_file"
-    jq -r '.output[] | select(.type == "message") | .content[0].text' \
-       "$response_file" >&3
+                ;;
+        esac
+    done
 }
-
-: "${PLM_ENDPOINT:?PLM_ENDPOINT is not set}"
-
-retry="${PLM_RETRY:-3}"
-auth_header=()
-[[ -n ${PLM_API_KEY:-} ]] && auth_header=(-H "Authorization: Bearer ${PLM_API_KEY}")
-
-request_file=$(mktemp)
-trap "rm -f '$request_file'" RETURN
-
-read request_file
-
-curl -sS -N "$PLM_ENDPOINT" \
-     -H "Content-Type: application/json" "${auth_header[@]}" \
-     --retry "$retry" --retry-delay 1 \
-     --data-binary @"$request_file" | stream
