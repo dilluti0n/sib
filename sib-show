@@ -47,9 +47,10 @@ else
 fi
 
 if [[ ! -z $key ]]; then
-    sib ls-trace $chain \
-        | awk -F'\t' -v k=$key '$2 == k { print $1 }' \
-        | xargs sib git cat-file blob
+    blob=$(sib ls-trace $chain \
+        | awk -F'\t' -v k="$key" '$2 == k { print $1 }')
+    [[ -n $blob ]] || die "no key '$key' on $chain"
+    sib git cat-file blob $blob
     exit 0
 fi
 
