@@ -1,0 +1,43 @@
+name: test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        # Old git releases, which ubuntu-latest does not cover
+        image: ['debian:bookworm', 'ubuntu:24.04']
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    steps:
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+              ca-certificates curl git jq make
+
+      - uses: actions/checkout@v7
+
+      - run: git --version && make -k test
+
+  macos:
+    name: macos (bash 3.2)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Use the system bash 3.2
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          ln -s /bin/bash "$RUNNER_TEMP/bin/bash"
+          echo "$RUNNER_TEMP/bin" >>"$GITHUB_PATH"
+
+      - name: Install dependencies
+        run: command -v jq || brew install jq
+
+      - run: bash --version && make -k test
