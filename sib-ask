@@ -33,7 +33,7 @@ PLM_TOOL_CHOICE sets tool_choice.
 EOF
 }
 
-parent=HEAD parent_arg= resend= ref= only_chain= noderef= input_format=text
+parent=HEAD resend= ref= only_chain= noderef= input_format=text
 while getopts he:m:p:t:nrcj o; do
     case $o in
         h) usage; exit 0 ;;
@@ -76,8 +76,8 @@ if [[ -z $resend ]]; then
 
     # rev-parse prints empty means there is no ref pointed to by
     # $parent. In this case, start a new chain and update HEAD.
-    parent_arg="${parent:+-p $parent}"
-    parent=$(plm-wrap -f $input_format -t plm | sib chain-jsonl $parent_arg) ||
+    parent=$(plm-wrap -f $input_format -t plm |
+                 sib chain-jsonl ${parent:+-p "$parent"}) ||
         die 'fail to chain input'
 fi
 
@@ -87,7 +87,7 @@ fi
 reflog=$(sib show -c $parent 2>/dev/null | tr -s '[:space:]' ' ' | cut -c1-72) || :
 
 [[ -n $only_chain ]] && {
-    sib update-ref -m "ask (user): ${reflog:-$parent}" $noderef HEAD $parent
+    sib update-ref -m "ask (user): ${reflog:-$parent}" ${noderef:+"$noderef"} HEAD $parent
     exit
 }
 
@@ -106,7 +106,7 @@ while :; do
         die something wrong
     [[ -n $new ]] || die "sib chain-jsonl -p $parent gives empty output"
 
-    sib update-ref -m "ask: ${reflog:-$new}" $noderef HEAD $new
+    sib update-ref -m "ask: ${reflog:-$new}" ${noderef:+"$noderef"} HEAD $new
 
     [[ $(sib ls-trace-json $new | jq -r '.type // empty') == function_call ]] || break
 
@@ -118,5 +118,5 @@ while :; do
     new=$(sib rev-parse HEAD)
     parent=$(sib chain-jsonl -p $new <<<"$out") || exit 10
     reflog="tool output of $new"
-    sib update-ref -m "ask (tool): $new" $noderef HEAD $parent
+    sib update-ref -m "ask (tool): $new" ${noderef:+"$noderef"} HEAD $parent
 done
