@@ -6,6 +6,9 @@ set -o pipefail
 # print message to fd 3, response to stdout; fall back to stderr
 { : >&3; } 2>/dev/null || exec 3>&2
 
+# one line per function call
+fc_line='"function_call: \(.name)(\(.arguments))"'
+
 auth_header=()
 [[ -n ${PLM_API_KEY:-} ]] && auth_header=(-H "Authorization: Bearer ${PLM_API_KEY}")
 
@@ -34,7 +37,10 @@ curl -sS -N -i "$PLM_ENDPOINT" -H "Content-Type: application/json" "${auth_heade
         application/json*)
             res=$(cat)
             printf '%s\n' "$res"
-            jq -r '.output[]? | select(.type == "message") | .content[0].text' <<<"$res" >&3
+            jq -r ".output[]? |
+                   if .type == \"message\" then .content[0].text
+                   elif .type == \"function_call\" then $fc_line
+                   else empty end" <<<"$res" >&3
             exit
             ;;
         text/event-stream*) ;;
@@ -62,6 +68,10 @@ curl -sS -N -i "$PLM_ENDPOINT" -H "Content-Type: application/json" "${auth_heade
                         ;;
                     response.output_text.done)
                         printf '\n' >&3
+                        ;;
+                    response.output_item.done)
+                        jq -r ".item | select(.type == \"function_call\") | $fc_line" \
+                           <<<"$payload" >&3
                         ;;
                     response.completed)
                         jq '.response' <<<"$payload"

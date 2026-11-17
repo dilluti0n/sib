@@ -1296,6 +1296,51 @@ assert_eq $'call_9\ncall_8\nmock assistant' \
     "sib ask -j keeps input order and appends the response"
 
 #
+# plm-send display (real plm-send with a fake curl)
+#
+
+FAKE_BIN="$TMPDIR_ROOT/fake-bin"
+mkdir -p "$FAKE_BIN"
+cat >"$FAKE_BIN/curl" <<'EOF'
+#!/usr/bin/env bash
+cat >/dev/null
+cat "$FAKE_CURL_RESPONSE"
+EOF
+chmod +x "$FAKE_BIN/curl"
+
+plm_send_display() {
+    local display="$TMPDIR_ROOT/display"
+    FAKE_CURL_RESPONSE=$1 PATH="$FAKE_BIN:$PATH" PLM_ENDPOINT=http://fake.invalid \
+        "$SOURCE_DIR/plm-send" </dev/null >/dev/null 3>"$display"
+    cat "$display"
+}
+
+fc_item='{"type":"function_call","call_id":"call_1","name":"get_weather","arguments":"{\"city\":\"Seoul\"}"}'
+msg_item='{"type":"message","role":"assistant","content":[{"type":"output_text","text":"hi"}]}'
+
+{
+    printf 'HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n'
+    printf 'event: response.output_text.delta\ndata: {"delta":"hi"}\n\n'
+    printf 'event: response.output_text.done\ndata: {}\n\n'
+    printf 'event: response.output_item.done\ndata: {"item":%s}\n\n' "$msg_item"
+    printf 'event: response.output_item.done\ndata: {"item":%s}\n\n' "$fc_item"
+    printf 'event: response.completed\ndata: {"response":{"output":[]}}\n\n'
+} >"$TMPDIR_ROOT/stream.http"
+
+assert_eq $'hi\nfunction_call: get_weather({"city":"Seoul"})' \
+    "$(plm_send_display "$TMPDIR_ROOT/stream.http")" \
+    "plm-send shows function calls in a stream"
+
+{
+    printf 'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n'
+    printf '{"output":[%s,%s]}\n' "$msg_item" "$fc_item"
+} >"$TMPDIR_ROOT/json.http"
+
+assert_eq $'hi\nfunction_call: get_weather({"city":"Seoul"})' \
+    "$(plm_send_display "$TMPDIR_ROOT/json.http")" \
+    "plm-send shows function calls in a JSON response"
+
+#
 # Final status
 #
 
