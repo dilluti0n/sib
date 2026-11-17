@@ -1335,6 +1335,9 @@ msg_item='{"type":"message","role":"assistant","content":[{"type":"output_text",
 
 {
     printf 'HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n'
+    printf 'event: response.reasoning_summary_text.delta\ndata: {"delta":"thin"}\n\n'
+    printf 'event: response.reasoning_summary_text.delta\ndata: {"delta":"king"}\n\n'
+    printf 'event: response.reasoning_summary_text.done\ndata: {}\n\n'
     printf 'event: response.output_text.delta\ndata: {"delta":"hi"}\n\n'
     printf 'event: response.output_text.done\ndata: {}\n\n'
     printf 'event: response.output_item.done\ndata: {"item":%s}\n\n' "$msg_item"
@@ -1342,16 +1345,18 @@ msg_item='{"type":"message","role":"assistant","content":[{"type":"output_text",
     printf 'event: response.completed\ndata: {"response":{"output":[]}}\n\n'
 } >"$TMPDIR_ROOT/stream.http"
 
-assert_eq $'hi\nfunction_call: get_weather({"city":"Seoul"})' \
+assert_eq $'thinking\n\nhi\nfunction_call: get_weather({"city":"Seoul"})' \
     "$(plm_send_display "$TMPDIR_ROOT/stream.http")" \
     "plm-send shows function calls in a stream"
 
 {
     printf 'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n'
-    printf '{"output":[%s,%s]}\n' "$msg_item" "$fc_item"
+    printf '{"output":[%s,%s,%s]}\n' \
+        '{"type":"reasoning","summary":[{"type":"summary_text","text":"thinking"}]}' \
+        "$msg_item" "$fc_item"
 } >"$TMPDIR_ROOT/json.http"
 
-assert_eq $'hi\nfunction_call: get_weather({"city":"Seoul"})' \
+assert_eq $'thinking\n\nhi\nfunction_call: get_weather({"city":"Seoul"})' \
     "$(plm_send_display "$TMPDIR_ROOT/json.http")" \
     "plm-send shows function calls in a JSON response"
 

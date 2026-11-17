@@ -38,7 +38,8 @@ curl -sS -N -i "$PLM_ENDPOINT" -H "Content-Type: application/json" "${auth_heade
             res=$(cat)
             printf '%s\n' "$res"
             jq -r ".output[]? |
-                   if .type == \"message\" then .content[0].text
+                   if .type == \"reasoning\" then (.summary[]? | .text + \"\\n\")
+                   elif .type == \"message\" then .content[0].text
                    elif .type == \"function_call\" then $fc_line
                    else empty end" <<<"$res" >&3
             exit
@@ -68,6 +69,12 @@ curl -sS -N -i "$PLM_ENDPOINT" -H "Content-Type: application/json" "${auth_heade
                         ;;
                     response.output_text.done)
                         printf '\n' >&3
+                        ;;
+                    response.reasoning_summary_text.delta)
+                        jq -rj '.delta // empty' <<<"$payload" >&3
+                        ;;
+                    response.reasoning_summary_text.done)
+                        printf '\n\n' >&3
                         ;;
                     response.output_item.done)
                         jq -r ".item | select(.type == \"function_call\") | $fc_line" \
