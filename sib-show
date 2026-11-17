@@ -34,7 +34,11 @@ done
 shift $((OPTIND - 1))
 
 truncate_content() {
-    [[ -n $n_lines ]] && head -n "$n_lines" || cat
+    if [[ -n $n_lines ]]; then
+        head -n "$n_lines"
+    else
+        cat
+    fi
 }
 
 target="${1:-HEAD}"
