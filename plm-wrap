@@ -101,7 +101,11 @@ plm_to_request() {
             die "$PLM_TOOLS: tools must be a JSON array"
     fi
 
+    # TODO: configure this
+    local reasoning_summary=auto
+
     jq -s \
+       --arg reasoning_summary "$reasoning_summary" \
        --argjson tools "$tools" \
        --arg tool_choice "${PLM_TOOL_CHOICE:-}" \
        --arg model "$PLM_MODEL" \
@@ -131,7 +135,8 @@ plm_to_request() {
                 empty
             end ],
           stream: $stream,
-          store: false
+          store: false,
+          reasoning: {summary: $reasoning_summary}
         }
         | if $tools != null then .tools = $tools else . end
         | if $tool_choice != "" then

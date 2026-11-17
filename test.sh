@@ -1245,6 +1245,9 @@ printf '{}' >"$TMPDIR_ROOT/bad-tools.json"
 assert_eq "false" "$(jq -c .store <<<"$tool_request")" \
     "plm-wrap sends store false"
 
+assert_eq '{"summary":"auto"}' "$(jq -c .reasoning <<<"$tool_request")" \
+    "plm-wrap asks for reasoning summaries"
+
 expect_input_fail \
     "plm-wrap rejects tools that are not an array" \
     '{"content":"q"}' \
