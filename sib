@@ -96,7 +96,9 @@ cmd_chain_trace() {
 
 cmd_mktrace() {
     [[ $# -eq 0 ]] || die 'no argument is allowed'
-    local lines=$(cat) line key hash keys
+    local lines line key hash keys
+
+    lines=$(cat)
 
     if [[ -n $lines ]]; then
         keys=$(printf '%s\n' "$lines" | tf_key) || die 'invalid trace format'
@@ -150,7 +152,9 @@ tf_blob() {
 cmd_mktrace_json() {
     [[ $# -eq 0 ]] || die 'no argument is allowed'
 
-    local json="$(cat)" tr
+    local json tr
+
+    json=$(cat)
 
     # Reject null/array/object/non-object
     jq -se 'length == 1 and (.[0] | type == "object" and all(.[]; type == "string"))' \
