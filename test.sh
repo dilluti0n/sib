@@ -240,6 +240,12 @@ case "$from:$to" in
         # Consume the provider response.
         cat >/dev/null
 
+        if [[ -n ${MOCK_FUNCTION_CALL_ONCE:-} && ! -e $MOCK_FUNCTION_CALL_ONCE ]]; then
+            : >"$MOCK_FUNCTION_CALL_ONCE"
+            jq -nc '{type: "function_call", call_id: "call_once", name: "echo_args", content: "{}"}'
+            exit
+        fi
+
         if [[ -n ${MOCK_FUNCTION_CALL:-} ]]; then
             jq -nc '{type: "function_call", call_id: "call_1", name: "f", content: "{}"}'
             exit
@@ -1246,7 +1252,7 @@ sib config unset sib.tools
 
 status=0
 printf 'call a tool' | MOCK_FUNCTION_CALL=1 sib ask -n >/dev/null 2>&1 || status=$?
-assert_eq "10" "$status" "sib ask exits 10 when the response ends with a function_call"
+assert_eq "10" "$status" "sib ask exits 10 when the function_call has no tool"
 
 assert_eq "function_call" "$(sib show -k type HEAD)" \
     "sib ask still commits the function_call before exiting 10"
@@ -1395,6 +1401,18 @@ assert_eq "" "$(env -u PLM_TOOLS sib status | grep PLM_TOOLS || :)" \
 assert_eq "ok" \
     "$(printf '%s' '{"command":"echo ok"}' | "$SOURCE_DIR/contrib/tools/bash")" \
     "contrib bash tool runs the command"
+
+status=0
+printf 'use a tool' | MOCK_FUNCTION_CALL_ONCE="$TMPDIR_ROOT/fc-once" sib ask -n >/dev/null 2>&1 ||
+    status=$?
+assert_eq "0" "$status" "sib ask runs the tool and asks again"
+
+assert_eq $'message\nfunction_call\nfunction_call_output\nmessage' \
+    "$(sib rev-jsonl HEAD | jq -r .type)" \
+    "sib ask chains call, tool output and the final message"
+
+assert_eq "got:{}err" "$(sib rev-jsonl HEAD | jq -rs '.[2].content')" \
+    "sib ask stores the tool output"
 
 #
 # Final status
