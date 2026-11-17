@@ -54,7 +54,7 @@ cmd_run() {
             die "invalid input: $call"
         [[ -n $name ]] || die "not a function_call: $call"
         # prevent ../../../bin/sh
-        [[ $name != */* && -x $TOOL_DIR/$name ]] ||
+        [[ $name != */* && -f $TOOL_DIR/$name && -x $TOOL_DIR/$name ]] ||
             die "no such tool: $TOOL_DIR/$name"
     done
 
