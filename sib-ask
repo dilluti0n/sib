@@ -84,16 +84,16 @@ fi
 [[ -n $parent ]] || die 'refuse to do worthless job with -nr'
 
 # Items like function_call_output may have no content
-reflog=$(sib show -c $parent 2>/dev/null | tr -s '[:space:]' ' ' | cut -c1-72) || :
+reflog=$(sib show -c "$parent" 2>/dev/null | tr -s '[:space:]' ' ' | cut -c1-72) || :
 
 [[ -n $only_chain ]] && {
-    sib update-ref -m "ask (user): ${reflog:-$parent}" ${noderef:+"$noderef"} HEAD $parent
+    sib update-ref -m "ask (user): ${reflog:-$parent}" ${noderef:+"$noderef"} HEAD "$parent"
     exit
 }
 
 while :; do
     {
-        res=$(sib rev-jsonl $parent \
+        res=$(sib rev-jsonl "$parent" \
                   | plm-wrap -f plm -t request \
                   | plm-send) || die 'fail to receive API call'
 
@@ -102,21 +102,21 @@ while :; do
         [[ -z "${SIB_DEBUG:-}" ]] || echo "sib-ask: res: $res" >&2
     } 3>&1
 
-    new=$(plm-wrap -f response -t plm <<<"$res" | sib chain-jsonl -p $parent) ||
+    new=$(plm-wrap -f response -t plm <<<"$res" | sib chain-jsonl -p "$parent") ||
         die something wrong
     [[ -n $new ]] || die "sib chain-jsonl -p $parent gives empty output"
 
-    sib update-ref -m "ask: ${reflog:-$new}" ${noderef:+"$noderef"} HEAD $new
+    sib update-ref -m "ask: ${reflog:-$new}" ${noderef:+"$noderef"} HEAD "$new"
 
-    [[ $(sib ls-trace-json $new | jq -r '.type // empty') == function_call ]] || break
+    [[ $(sib ls-trace-json "$new" | jq -r '.type // empty') == function_call ]] || break
 
     # The model is waiting for tool output. Run the tools and ask again;
     # if they cannot run, leave HEAD on the call for the caller.
-    out=$(sib tool pending $new | sib tool run) || exit 10
+    out=$(sib tool pending "$new" | sib tool run) || exit 10
 
     # A tool may have moved HEAD (e.g. sib edit); continue from there
     new=$(sib rev-parse HEAD)
-    parent=$(sib chain-jsonl -p $new <<<"$out") || exit 10
+    parent=$(sib chain-jsonl -p "$new" <<<"$out") || exit 10
     reflog="tool output of $new"
-    sib update-ref -m "ask (tool): $new" ${noderef:+"$noderef"} HEAD $parent
+    sib update-ref -m "ask (tool): $new" ${noderef:+"$noderef"} HEAD "$parent"
 done

@@ -47,14 +47,14 @@ target="${1:-HEAD}"
 if [[ -n "${SIB_SHOW_RESOLVED:-}" ]]; then
     chain="$target"
 else
-    chain=$(sib rev-parse $target)
+    chain=$(sib rev-parse "$target")
 fi
 
 if [[ ! -z $key ]]; then
-    blob=$(sib ls-trace $chain \
+    blob=$(sib ls-trace "$chain" \
         | awk -F'\t' -v k="$key" '$2 == k { print $1 }')
     [[ -n $blob ]] || die "no key '$key' on $chain"
-    sib git cat-file blob $blob
+    sib git cat-file blob "$blob"
     exit 0
 fi
 
@@ -63,7 +63,7 @@ echo "chain $chain"
 
 CONTENT=content
 
-lst="$(sib ls-trace $chain)"
+lst="$(sib ls-trace "$chain")"
 [[ -z $lst ]] && { echo --- Empty trace --- >&2; echo; exit 0; }
 
 # Traverse all key except $CONTENT
@@ -74,12 +74,12 @@ echo "$lst" \
     # Should not die here
     [[ -z $value ]] && die "malformed ls-tree format $lst"
 
-    value=$(sib git cat-file blob $value)
+    value=$(sib git cat-file blob "$value")
     echo "$key: $value"
 done
 
 echo
 content=$(echo "$lst" | awk -F'\t' -v k="$CONTENT" '$2 == k { print $1 }')
-[[ -z $content ]] && { echo No $CONTENT field on $chain >&2; exit 0; }
-sib git cat-file blob $content | truncate_content
+[[ -z $content ]] && { echo No $CONTENT field on "$chain" >&2; exit 0; }
+sib git cat-file blob "$content" | truncate_content
 echo

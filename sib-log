@@ -29,13 +29,13 @@ done
 
 [[ $# -le 1 ]] || { usage >&2; die; }
 target="${1:-HEAD}"
-tid=$(sib rev-parse "$target" 2>/dev/null) || die invalid chain-ish $target
+tid=$(sib rev-parse "$target" 2>/dev/null) || die invalid chain-ish "$target"
 
 show_args=()
 [[ -n $n_lines ]] && show_args=(-n "$n_lines")
 
 sib rev-list "$tid" | while read -r chain; do
-    SIB_SHOW_RESOLVED=1 sib-show "${show_args[@]}" $chain
+    SIB_SHOW_RESOLVED=1 sib-show "${show_args[@]}" "$chain"
     echo
     echo ---
     echo

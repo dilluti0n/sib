@@ -76,5 +76,5 @@ target="${2:-HEAD}"
 chain=$(sib rev-parse "$target" 2>/dev/null) || die "invalid chain: $target"
 sib update-ref -m "save: $name" --no-deref "$ref" "$chain"
 
-chain=$(sib git rev-parse --short $chain)
+chain=$(sib git rev-parse --short "$chain")
 echo "Saved $chain to $name" >&2

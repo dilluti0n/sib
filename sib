@@ -91,7 +91,7 @@ cmd_chain_trace() {
 
     GIT_AUTHOR_DATE="$COMMIT_DATE" \
     GIT_COMMITTER_DATE="$COMMIT_DATE" \
-    lgit commit-tree "${parent_args[@]}" $trace </dev/null
+    lgit commit-tree "${parent_args[@]}" "$trace" </dev/null
 }
 
 # shellcheck disable=SC2120 # invoked via cmd_* dispatch
@@ -366,7 +366,7 @@ if declare -F "$fn" > /dev/null; then
 elif command -v "sib-$cmd" >/dev/null; then
     exec "sib-$cmd" "$@"
 else
-    echo sib: unknown command $cmd >&2
+    echo sib: unknown command "$cmd" >&2
     echo >&2
     usage
     die
