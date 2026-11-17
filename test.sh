@@ -236,6 +236,11 @@ case "$from:$to" in
         # Consume the provider response.
         cat >/dev/null
 
+        if [[ -n ${MOCK_FUNCTION_CALL:-} ]]; then
+            jq -nc '{type: "function_call", call_id: "call_1", name: "f", content: "{}"}'
+            exit
+        fi
+
         jq -nc \
             --arg role "${role:-assistant}" \
             --arg content "mock assistant" \
@@ -1193,6 +1198,58 @@ response_chain=$("$PLM_WRAP" -f response -t plm <<<"$raw_response" | sib chain-j
 
 assert_eq "3" "$(commit_count "$response_chain")" \
     "one response with three known items chains three commits"
+
+tools_file="$TMPDIR_ROOT/tools.json"
+printf '%s' '[{"type":"function","name":"f","parameters":{"type":"object","properties":{}}}]' >"$tools_file"
+
+tool_request=$(printf '%s\n' '{"type":"message","role":"user","content":"q"}' |
+    PLM_MODEL=m PLM_USE_STREAM=false PLM_TOOLS="$tools_file" "$PLM_WRAP" -f plm -t request)
+
+assert_eq "$(jq -c . "$tools_file")" "$(jq -c .tools <<<"$tool_request")" \
+    "plm-wrap passes PLM_TOOLS verbatim as tools"
+
+assert_eq "null" "$(jq -c .tool_choice <<<"$tool_request")" \
+    "plm-wrap omits tool_choice by default"
+
+assert_eq "null" \
+    "$(printf '%s\n' '{"content":"q"}' |
+        PLM_MODEL=m PLM_USE_STREAM=false "$PLM_WRAP" -f plm -t request | jq -c .tools)" \
+    "plm-wrap omits tools when PLM_TOOLS is unset"
+
+assert_eq '"required"' \
+    "$(printf '%s\n' '{"content":"q"}' |
+        PLM_MODEL=m PLM_USE_STREAM=false PLM_TOOL_CHOICE=required \
+        "$PLM_WRAP" -f plm -t request | jq -c .tool_choice)" \
+    "plm-wrap passes a string tool_choice"
+
+assert_eq '{"type":"function","name":"f"}' \
+    "$(printf '%s\n' '{"content":"q"}' |
+        PLM_MODEL=m PLM_USE_STREAM=false PLM_TOOL_CHOICE='{"type":"function","name":"f"}' \
+        "$PLM_WRAP" -f plm -t request | jq -c .tool_choice)" \
+    "plm-wrap passes a JSON object tool_choice"
+
+printf '{}' >"$TMPDIR_ROOT/bad-tools.json"
+expect_input_fail \
+    "plm-wrap rejects tools that are not an array" \
+    '{"content":"q"}' \
+    env PLM_MODEL=m PLM_USE_STREAM=false PLM_TOOLS="$TMPDIR_ROOT/bad-tools.json" \
+    "$PLM_WRAP" -f plm -t request
+
+sib config set sib.tools "$tools_file"
+assert_contains "$(env -u PLM_TOOLS sib status)" "PLM_TOOLS:    $tools_file" \
+    "sib.tools configuration sets PLM_TOOLS"
+sib config unset sib.tools
+
+status=0
+printf 'call a tool' | MOCK_FUNCTION_CALL=1 sib ask -n >/dev/null 2>&1 || status=$?
+assert_eq "10" "$status" "sib ask exits 10 when the response ends with a function_call"
+
+assert_eq "function_call" "$(sib show -k type HEAD)" \
+    "sib ask still commits the function_call before exiting 10"
+
+status=0
+printf 'plain' | sib ask >/dev/null 2>&1 || status=$?
+assert_eq "0" "$status" "sib ask exits 0 when the response ends with a message"
 
 #
 # Final status

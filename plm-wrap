@@ -93,7 +93,17 @@ plm_to_text() {
 
 # Build request input from a per-type whitelist; see Documentation/KeyFormat.md
 plm_to_request() {
+    local tools='null'
+
+    if [[ -n ${PLM_TOOLS:-} ]]; then
+        tools=$(jq -c . -- "$PLM_TOOLS") || die "$PLM_TOOLS: cannot read tools"
+        jq -e 'type == "array"' >/dev/null <<<"$tools" ||
+            die "$PLM_TOOLS: tools must be a JSON array"
+    fi
+
     jq -s \
+       --argjson tools "$tools" \
+       --arg tool_choice "${PLM_TOOL_CHOICE:-}" \
        --arg model "$PLM_MODEL" \
        --argjson stream "$PLM_USE_STREAM" \
        --arg temp "${PLM_TEMP:-}" \
@@ -118,6 +128,10 @@ plm_to_request() {
             end ],
           stream: $stream
         }
+        | if $tools != null then .tools = $tools else . end
+        | if $tool_choice != "" then
+              .tool_choice = (try ($tool_choice | fromjson) catch $tool_choice)
+          else . end
         | if $temp  != "" then .temperature       = ($temp  | tonumber) else . end
         | if $top_p != "" then .top_p             = ($top_p | tonumber) else . end
         | if $fpen  != "" then .frequency_penalty = ($fpen  | tonumber) else . end

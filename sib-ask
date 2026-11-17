@@ -22,6 +22,10 @@ usage: ${NAME} [-nrch] [-p <chain-ish>] [-t <name>] [-e <endpoint>] [-m <model>]
   -r     Do not accept or chain input (use with -p)
   -c     Chain user turn only, no API call done
   -h     Show this help
+
+Exit status is 10 when the response ends with a function_call.
+Tools are read from the JSON file PLM_TOOLS (config sib.tools);
+PLM_TOOL_CHOICE sets tool_choice.
 EOF
 }
 
@@ -93,3 +97,6 @@ new=$(plm-wrap -f response -t plm <<<"$res" | sib chain-jsonl -p $parent) ||
 [[ -n $new ]] || die "sib chain-jsonl -p $parent gives empty output"
 
 sib update-ref -m "ask: ${reflog:-$new}" $noderef HEAD $new
+
+# The model is waiting for tool output; let callers loop on it
+[[ $(sib ls-trace-json $new | jq -r '.type // empty') != function_call ]] || exit 10

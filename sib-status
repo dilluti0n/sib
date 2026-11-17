@@ -11,6 +11,7 @@ head_hash=$(sib git rev-parse -q --verify HEAD 2>/dev/null || :)
 printf 'SIB_DIR:      %s\n' "$SIB_DIR"
 printf 'PLM_MODEL:    %s\n' "$PLM_MODEL"
 printf 'PLM_ENDPOINT: %s\n' "$PLM_ENDPOINT"
+[[ -z ${PLM_TOOLS:-} ]] || printf 'PLM_TOOLS:    %s\n' "$PLM_TOOLS"
 
 printf '\n'
 if [[ -z $head_hash ]]; then

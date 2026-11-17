@@ -1,0 +1,18 @@
+[
+  {
+    "type": "function",
+    "name": "bash",
+    "description": "Run a bash command and return its stdout and stderr.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "The bash command to run."
+        }
+      },
+      "required": ["command"],
+      "additionalProperties": false
+    }
+  }
+]
