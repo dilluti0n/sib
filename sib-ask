@@ -83,7 +83,8 @@ fi
 
 [[ -n $parent ]] || die 'refuse to do worthless job with -nr'
 
-reflog=$(sib show -c $parent | tr -s '[:space:]' ' ' | cut -c1-72)
+# Items like function_call_output may have no content
+reflog=$(sib show -c $parent 2>/dev/null | tr -s '[:space:]' ' ' | cut -c1-72) || :
 
 [[ -n $only_chain ]] && {
     sib update-ref -m "ask (user): ${reflog:-$parent}" $noderef HEAD $parent

@@ -1309,6 +1309,12 @@ printf '%s\n' \
     sib ask -j >/dev/null 2>&1 || status=$?
 assert_eq "0" "$status" "sib ask -j sends after chaining several items"
 
+status=0
+printf '%s\n' '{"type":"function_call_output","call_id":"call_7"}' |
+    sib ask -j -c >/dev/null 2>&1 || status=$?
+assert_eq "0" "$status" "sib ask -j -c accepts an item without content"
+sib switch HEAD~ 2>/dev/null
+
 assert_eq $'call_9\ncall_8\nmock assistant' \
     "$(sib rev-jsonl HEAD | tail -n 3 | jq -r '.call_id // .content')" \
     "sib ask -j keeps input order and appends the response"
