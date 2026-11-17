@@ -9,10 +9,10 @@ tarball:
 	tar --transform "s,^,${PN}/," -czvf ${PN}.tar.gz ${SIB} ${PLM} VERSION Makefile README.md COPYING
 
 clean:
-	rm *.tar.gz
+	rm -f *.tar.gz
 
 install: uninstall
-	mkdir -p ${DESTDIR}${PREFIX}/libexec/sib-core
+	mkdir -p ${DESTDIR}${PREFIX}/bin ${DESTDIR}${PREFIX}/libexec/sib-core
 	cp -R ${SIB} ${PLM} VERSION ${DESTDIR}${PREFIX}/libexec/sib-core
 	ln -sf	../libexec/sib-core/sib ${DESTDIR}${PREFIX}/bin/sib
 	chmod 755 ${DESTDIR}${PREFIX}/bin/sib

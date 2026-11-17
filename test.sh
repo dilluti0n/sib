@@ -17,6 +17,9 @@ TMPDIR_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/sib-test.XXXXXX")
 RUNTIME="$TMPDIR_ROOT/runtime"
 export SIB_DIR="$TMPDIR_ROOT/store"
 
+# Don't inherit the caller's plm configuration
+unset $(compgen -v PLM_ || true)
+
 tests=0
 
 cleanup() {
