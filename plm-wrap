@@ -67,7 +67,7 @@ src_to_plm() {
         text)     text_to_plm ;;
         response) response_to_plm ;;
         request)  die "$source_format: not supported for src" ;;
-        *) die "$source_format: unknown dest format" ;;
+        *) die "$source_format: unknown src format" ;;
     esac
 }
 
@@ -154,7 +154,7 @@ plm_to_dest() {
         text)     plm_to_text ;;
         response) die "$dest_format: not supported for dest" ;;
         request)  plm_to_request ;;
-        *) die "$dest_format: unknown src format" ;;
+        *) die "$dest_format: unknown dest format" ;;
     esac
 }
 
