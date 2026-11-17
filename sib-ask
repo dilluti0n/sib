@@ -88,8 +88,8 @@ reflog=$(sib show -c $parent | tr -s '[:space:]' ' ' | cut -c1-72)
     [[ -z "${SIB_DEBUG:-}" ]] || echo "sib-ask: res: $res" >&2
 } 3>&1
 
-new=$(plm-wrap -f response -t plm -r assistant <<<"$res" | sib chain-trace-json -p $parent) ||
+new=$(plm-wrap -f response -t plm <<<"$res" | sib chain-jsonl -p $parent) ||
     die something wrong
-[[ -n $new ]] || die "sib chain-trace-json -p $parent gives empty output"
+[[ -n $new ]] || die "sib chain-jsonl -p $parent gives empty output"
 
 sib update-ref -m "ask: ${reflog:-$new}" $noderef HEAD $new

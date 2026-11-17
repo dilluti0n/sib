@@ -220,9 +220,10 @@ case "$from:$to" in
             --arg role user \
             --arg model "${PLM_MODEL:-mock-model}" \
             '{
+                type: "message",
                 role: $role,
                 content: .,
-                model: $model
+                "sib:model": $model
             }'
         ;;
 
@@ -240,9 +241,10 @@ case "$from:$to" in
             --arg content "mock assistant" \
             --arg model "${PLM_MODEL:-mock-model}" \
             '{
+                type: "message",
                 role: $role,
                 content: $content,
-                model: $model
+                "sib:model": $model
             }'
         ;;
 
@@ -1126,6 +1128,71 @@ rm -f "$RUNTIME/sib-rev-parse"
 sib config set sib.model "$model_before_reinit"
 sib config set sib.endpoint "$endpoint_before_reinit"
 
+
+#
+# plm-wrap key format (real plm-wrap, not the mock)
+#
+
+PLM_WRAP="$SOURCE_DIR/plm-wrap"
+
+raw_response='{
+  "id": "resp_1", "object": "response", "status": "completed", "model": "m1",
+  "output": [
+    {"type": "reasoning", "id": "rs_1", "status": "completed",
+     "summary": [{"type": "summary_text", "text": "a"}, {"type": "summary_text", "text": "b"}],
+     "encrypted_content": "ENC"},
+    {"type": "function_call", "id": "fc_1", "status": "completed",
+     "call_id": "call_1", "name": "get_weather", "arguments": "{\"city\":\"Seoul\"}"},
+    {"type": "web_search_call", "id": "ws_1", "status": "completed"},
+    {"type": "message", "id": "msg_1", "status": "incomplete", "role": "assistant",
+     "content": [{"type": "output_text", "text": "x", "annotations": []},
+                 {"type": "output_text", "text": "y", "annotations": []}]}
+  ]
+}'
+
+assert_eq \
+    "$(jq -c . <<'EOF'
+{"type":"reasoning","content":"a\n\nb","encrypted_content":"ENC","sib:model":"m1"}
+{"type":"function_call","call_id":"call_1","name":"get_weather","content":"{\"city\":\"Seoul\"}","sib:model":"m1"}
+{"type":"message","role":"assistant","content":"x\n\ny","status":"incomplete","sib:model":"m1"}
+EOF
+)" \
+    "$("$PLM_WRAP" -f response -t plm <<<"$raw_response")" \
+    "plm-wrap maps each output item to one plm line"
+
+assert_eq \
+    '{"type":"message","role":"user","content":"hi\n"}' \
+    "$(printf 'hi\n' | "$PLM_WRAP" -f text -t plm)" \
+    "plm-wrap text input is a typed user message"
+
+plm_chain='{"type":"message","role":"user","content":"q","sib:model":"m1"}
+{"type":"reasoning","content":"a","encrypted_content":"ENC"}
+{"type":"reasoning","content":"no enc"}
+{"type":"function_call","call_id":"call_1","name":"f","content":"{}","status":"completed"}
+{"type":"function_call_output","call_id":"call_1","name":"f","content":"out"}
+{"type":"web_search_call","content":"skip"}'
+
+assert_eq \
+    "$(jq -c . <<'EOF'
+[{"type":"message","role":"user","content":"q"},
+ {"type":"reasoning","summary":[{"type":"summary_text","text":"a"}],"encrypted_content":"ENC"},
+ {"type":"function_call","call_id":"call_1","name":"f","arguments":"{}"},
+ {"type":"function_call_output","call_id":"call_1","output":"out"}]
+EOF
+)" \
+    "$(PLM_MODEL=m PLM_USE_STREAM=false "$PLM_WRAP" -f plm -t request <<<"$plm_chain" | jq -c .input)" \
+    "plm-wrap builds request input from per-type whitelist"
+
+assert_eq \
+    '[{"type":"message","role":"assistant","content":"a"},{"type":"message","role":"user","content":"q"}]' \
+    "$(printf '%s\n' '{"role":"assistant","content":"a","model":"m"}' '{"role":"user","content":"q"}' |
+        PLM_MODEL=m PLM_USE_STREAM=false "$PLM_WRAP" -f plm -t request | jq -c .input)" \
+    "plm-wrap treats lines without type as messages"
+
+response_chain=$("$PLM_WRAP" -f response -t plm <<<"$raw_response" | sib chain-jsonl)
+
+assert_eq "3" "$(commit_count "$response_chain")" \
+    "one response with three known items chains three commits"
 
 #
 # Final status
