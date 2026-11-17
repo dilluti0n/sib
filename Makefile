@@ -4,9 +4,15 @@ SIB = $(filter-out %.tar.gz, $(wildcard sib-*)) sib
 PLM = $(wildcard plm-*)
 VERSION = $(shell cat VERSION)
 PN = sib-${VERSION}
+T = $(sort $(wildcard t/t[0-9]*.sh))
 
 tarball:
 	tar --transform "s,^,${PN}/," -czvf ${PN}.tar.gz ${SIB} ${PLM} VERSION Makefile README.md COPYING
+
+test: ${T}
+
+${T}:
+	@bash $@
 
 clean:
 	rm -f *.tar.gz
@@ -21,4 +27,4 @@ uninstall:
 	rm -rf -- ${DESTDIR}${PREFIX}/libexec/sib-core
 	rm -f -- ${DESTDIR}${PREFIX}/bin/sib
 
-.PHONY: install uninstall tarball clean
+.PHONY: install uninstall tarball clean test ${T}

@@ -153,7 +153,8 @@ cmd_mktrace_json() {
     local json="$(cat)" tr
 
     # Reject null/array/object/non-object
-    jq -e 'type == "object" and all(.[]; type == "string")' >/dev/null <<<"$json" \
+    jq -se 'length == 1 and (.[0] | type == "object" and all(.[]; type == "string"))' \
+        >/dev/null <<<"$json" \
         || die 'input must be a JSON object containing only string values'
 
     tr=$(jq -r 'keys_unsorted[]' <<<"$json" | while IFS= read -r key; do
@@ -305,7 +306,14 @@ usage: sib <ask|log|show|switch|save|tool> [-h ...]
 EOF
 }
 
+# Map git >= 2.46 subcommands to options older git understands
 cmd_config() {
+    case ${1-} in
+        get) shift; set -- --get "$@" ;;
+        set) shift ;;
+        unset) shift; set -- --unset "$@" ;;
+        list) shift; set -- --list "$@" ;;
+    esac
     lgit config "$@"
 }
 
