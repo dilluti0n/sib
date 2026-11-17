@@ -40,6 +40,7 @@ sib ls-trace $chain \
 [[ -s $TRACE ]] || die empty trace
 
 editor=${EDITOR:-nano}
+# shellcheck disable=SC2086 # EDITOR may carry arguments
 $editor $EB || die $editor returns $?
 
 blob=$(sib git hash-object -w $EB) || die
