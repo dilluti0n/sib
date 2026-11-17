@@ -86,4 +86,15 @@ assert_eq "edited tip" "$(field content HEAD)" \
 assert_eq "$symbolic_edit_after" "$(head_hash)" \
     "symbolic HEAD resolves to the edited tip"
 
+#
+# EDITOR with arguments
+#
+
+EDIT_CONTENT='edited with args' \
+EDITOR="$RUNTIME/test-editor -w" \
+    sib edit HEAD >/dev/null
+
+assert_eq "edited with args" "$(field content HEAD)" \
+    "EDITOR may carry arguments"
+
 test_done

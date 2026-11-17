@@ -333,6 +333,9 @@ cat >"$RUNTIME/test-editor" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Accept flags like `code -w'
+while [[ ${1-} == -* ]]; do shift; done
+
 [[ $# -eq 1 ]] || {
     echo 'test-editor expects one file' >&2
     exit 2
