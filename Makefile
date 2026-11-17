@@ -12,7 +12,7 @@ tarball:
 	tar --transform "s,^,${PN}/," -czvf ${PN}.tar.gz ${SIB} ${PLM} VERSION Makefile README.md COPYING
 
 lint:
-	shellcheck -S warning ${LINT}
+	shellcheck -S info ${LINT}
 
 test: ${T}
 
