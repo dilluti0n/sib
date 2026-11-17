@@ -51,7 +51,7 @@ response_to_plm() {
          elif .type == "function_call" then
              {call_id, name, content: .arguments}
          elif .type == "reasoning" then
-             {content: ([.summary[]? | .text] | join("\n\n")), encrypted_content}
+             {id, content: ([.summary[]? | .text] | join("\n\n")), encrypted_content}
          else
              empty
          end) as $item
@@ -122,11 +122,16 @@ plm_to_request() {
             elif .type == "function_call_output" then
                 {type, call_id, output: .content}
             elif .type == "reasoning" and .encrypted_content != null then
-                {type, summary: [{type: "summary_text", text: .content}], encrypted_content}
+                {type, id,
+                 summary: (if (.content // "") == "" then []
+                           else [{type: "summary_text", text: .content}] end),
+                 encrypted_content}
+                | with_entries(select(.value != null))
             else
                 empty
             end ],
-          stream: $stream
+          stream: $stream,
+          store: false
         }
         | if $tools != null then .tools = $tools else . end
         | if $tool_choice != "" then

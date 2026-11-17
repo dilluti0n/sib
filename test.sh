@@ -1168,7 +1168,7 @@ raw_response='{
 
 assert_eq \
     "$(jq -c . <<'EOF'
-{"type":"reasoning","content":"a\n\nb","encrypted_content":"ENC","sib:model":"m1"}
+{"type":"reasoning","id":"rs_1","content":"a\n\nb","encrypted_content":"ENC","sib:model":"m1"}
 {"type":"function_call","call_id":"call_1","name":"get_weather","content":"{\"city\":\"Seoul\"}","sib:model":"m1"}
 {"type":"message","role":"assistant","content":"x\n\ny","status":"incomplete","sib:model":"m1"}
 EOF
@@ -1182,7 +1182,8 @@ assert_eq \
     "plm-wrap text input is a typed user message"
 
 plm_chain='{"type":"message","role":"user","content":"q","sib:model":"m1"}
-{"type":"reasoning","content":"a","encrypted_content":"ENC"}
+{"type":"reasoning","id":"rs_1","content":"a","encrypted_content":"ENC"}
+{"type":"reasoning","content":"","encrypted_content":"ENC2"}
 {"type":"reasoning","content":"no enc"}
 {"type":"function_call","call_id":"call_1","name":"f","content":"{}","status":"completed"}
 {"type":"function_call_output","call_id":"call_1","name":"f","content":"out"}
@@ -1191,7 +1192,8 @@ plm_chain='{"type":"message","role":"user","content":"q","sib:model":"m1"}
 assert_eq \
     "$(jq -c . <<'EOF'
 [{"type":"message","role":"user","content":"q"},
- {"type":"reasoning","summary":[{"type":"summary_text","text":"a"}],"encrypted_content":"ENC"},
+ {"type":"reasoning","id":"rs_1","summary":[{"type":"summary_text","text":"a"}],"encrypted_content":"ENC"},
+ {"type":"reasoning","summary":[],"encrypted_content":"ENC2"},
  {"type":"function_call","call_id":"call_1","name":"f","arguments":"{}"},
  {"type":"function_call_output","call_id":"call_1","output":"out"}]
 EOF
@@ -1240,6 +1242,9 @@ assert_eq '{"type":"function","name":"f"}' \
     "plm-wrap passes a JSON object tool_choice"
 
 printf '{}' >"$TMPDIR_ROOT/bad-tools.json"
+assert_eq "false" "$(jq -c .store <<<"$tool_request")" \
+    "plm-wrap sends store false"
+
 expect_input_fail \
     "plm-wrap rejects tools that are not an array" \
     '{"content":"q"}' \
