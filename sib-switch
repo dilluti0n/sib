@@ -64,6 +64,7 @@ if [[ -n $symbolic ]]; then
     echo "HEAD now followes $chain" >&2
 else
     res=$(sib rev-parse "$chain" 2>/dev/null) || die "$chain is invalid"
-    echo "switch to $chain ($(sib git rev-parse --short $res)) from $(sib git rev-parse --short HEAD)" >&2
+    from=$(sib git rev-parse -q --verify --short HEAD) || from='(unborn)'
+    echo "switch to $chain ($(sib git rev-parse --short $res)) from $from" >&2
     sib update-ref -m "switch to $chain" --no-deref HEAD $res
 fi

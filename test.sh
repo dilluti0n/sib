@@ -685,6 +685,17 @@ assert_eq "$model_before_reinit" "$(sib config get sib.model)" \
 assert_eq "$endpoint_before_reinit" "$(sib config get sib.endpoint)" \
     "reinitialization preserves endpoint configuration"
 
+switch_err=$(
+    export SIB_DIR="$TMPDIR_ROOT/unborn-store"
+    sib init >/dev/null 2>&1
+    c=$(printf '{"content":"x"}' | sib chain-jsonl)
+    sib switch "$c" 2>&1 >/dev/null | sed "s/$c/C/g; s/${c:0:7}/c/"
+) || fail "switch from an unborn HEAD failed"
+
+assert_eq "switch to C (c) from (unborn)" \
+    "$switch_err" \
+    "switch from an unborn HEAD reports it without git errors"
+
 expect_fail \
     "init rejects unexpected positional arguments" \
     sib init unexpected
