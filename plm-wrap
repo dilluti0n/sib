@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Available formats: plm/request(only for dest)/response(only for src)/text(markdown)
+# Available formats: plm/text(only for src)/request(only for dest)/response(only for src)
 #
 # plm: one item per line; see Documentation/KeyFormat.md
 
@@ -13,7 +13,7 @@ die() {
 }
 
 usage() {
-    echo "Usage: $NAME [-f <text|plm|response>] [-t <plm|text|request>]" >&2
+    echo "Usage: $NAME [-f <text|plm|response>] [-t <plm|request>]" >&2
 }
 
 source_format="text"
@@ -62,26 +62,6 @@ src_to_plm() {
         request)  die "$source_format: not supported for src" ;;
         *) die "$source_format: unknown src format" ;;
     esac
-}
-
-plm_to_text() {
-    jq -sr \
-       'map(
-            .type //= "message"
-            | if .type == "message" and .role == "user" then
-                .content | split("\n") | map(" > " + . ) | join("\n")
-            elif .type == "message" and .role == "assistant" then
-                "✨ " + .content
-            elif .type == "function_call" then
-                "🔧 \(.name)(\(.content))"
-            elif .type == "function_call_output" then
-                "↩ " + .content
-            elif .type == "reasoning" then
-                "💭 " + .content
-            else
-                .content
-            end
-        ) | join("\n\n")'
 }
 
 # Build request input from a per-type whitelist; see Documentation/KeyFormat.md
@@ -145,7 +125,6 @@ plm_to_request() {
 plm_to_dest() {
     case "$dest_format" in
         plm)      tee ;;
-        text)     plm_to_text ;;
         response) die "$dest_format: not supported for dest" ;;
         request)  plm_to_request ;;
         *) die "$dest_format: unknown dest format" ;;
