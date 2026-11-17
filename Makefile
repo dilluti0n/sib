@@ -4,10 +4,15 @@ SIB = $(filter-out %.tar.gz, $(wildcard sib-*)) sib
 PLM = $(wildcard plm-*)
 VERSION = $(shell cat VERSION)
 PN = sib-${VERSION}
+LINT = $(shell awk 'FNR == 1 && /^\043!.*[\/ ](ba)?sh$$/ { print FILENAME }' \
+	$(SIB) $(PLM) contrib/tools/*)
 T = $(sort $(wildcard t/t[0-9]*.sh))
 
 tarball:
 	tar --transform "s,^,${PN}/," -czvf ${PN}.tar.gz ${SIB} ${PLM} VERSION Makefile README.md COPYING
+
+lint:
+	shellcheck -S info ${LINT}
 
 test: ${T}
 
@@ -27,4 +32,4 @@ uninstall:
 	rm -rf -- ${DESTDIR}${PREFIX}/libexec/sib-core
 	rm -f -- ${DESTDIR}${PREFIX}/bin/sib
 
-.PHONY: install uninstall tarball clean test ${T}
+.PHONY: install uninstall tarball clean lint test ${T}

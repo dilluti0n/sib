@@ -4,8 +4,6 @@
 
 set -euo pipefail
 
-NAME="$(basename -- "$0")"
-
 die() {
     [ $# -eq 0 ] || echo fatal: "$@" >&2
     exit 1
@@ -13,7 +11,7 @@ die() {
 
 chain_ish="${1:-HEAD}"
 chain=$(sib rev-parse "$chain_ish")
-[[ -z $chain ]] && die Invalid: $chain_ish
+[[ -z $chain ]] && die Invalid: "$chain_ish"
 
 # List to rebase
 rev_list=()
@@ -26,29 +24,30 @@ done < <(sib rev-list HEAD)
 
 WORKDIR=$(mktemp -d /tmp/sib.XXXXXX)
 trap 'rm -rf $WORKDIR' EXIT
-cd $WORKDIR
+cd "$WORKDIR"
 
 EB=content
 TRACE=trace
 NTRACE=ntrace
 
 # FIXME: exit on awk just in case
-sib ls-trace $chain \
+sib ls-trace "$chain" \
     | tee $TRACE \
     | awk -F'\t' '$2=="content"{print $1; exit}' \
     | tee oldblob \
     | xargs -r sib git cat-file blob > $EB
-[[ ${PIPESTATUS[0]} -eq 0 ]] || die wrong $chain from $chain_ish
+[[ ${PIPESTATUS[0]} -eq 0 ]] || die wrong "$chain" from "$chain_ish"
 [[ -s $TRACE ]] || die empty trace
 
 editor=${EDITOR:-nano}
+# shellcheck disable=SC2086 # EDITOR may carry arguments
 $editor $EB || die $editor returns $?
 
 blob=$(sib git hash-object -w $EB) || die
-[[ $(cat oldblob) == $blob ]] && exit 0 # no changes
+[[ $(cat oldblob) == "$blob" ]] && exit 0 # no changes
 
 [[ -z $blob ]] && die
-awk -v blob=$blob -v OFS='\t' '
+awk -v blob="$blob" -v OFS='\t' '
 {
   if ($2=="content") {
     print blob, "content";
@@ -59,22 +58,22 @@ awk -v blob=$blob -v OFS='\t' '
 mv -f -- $NTRACE $TRACE
 
 # Edit target chain
-parent=$(sib ls-chain ${rev_list[0]} | awk '$1=="parent"{print $2}') || die
+parent=$(sib ls-chain "${rev_list[0]}" | awk '$1=="parent"{print $2}') || die
 trace=$(cat $TRACE | sib mktrace) || die
 if [[ -z $parent ]]; then
-    parent=$(sib chain-trace $trace) || die
+    parent=$(sib chain-trace "$trace") || die
 else
-    parent=$(sib chain-trace -p $parent $trace) || die
+    parent=$(sib chain-trace -p "$parent" "$trace") || die
 fi
 
 # print edited chain's hash to stdout
-echo $parent
+echo "$parent"
 
 # Rebase else onto target
 for (( i = 1; i < ${#rev_list[@]}; i++ )); do
     [[ -z $parent ]] && die cannot find parent on index $i
-    trace=$(sib ls-chain ${rev_list[i]} | awk '$1=="trace"{print $2}') || die
-    parent=$(sib chain-trace -p $parent $trace) || die
+    trace=$(sib ls-chain "${rev_list[i]}" | awk '$1=="trace"{print $2}') || die
+    parent=$(sib chain-trace -p "$parent" "$trace") || die
 done
 
-sib update-ref -m "edit $chain_ish" HEAD $parent
+sib update-ref -m "edit $chain_ish" HEAD "$parent"
