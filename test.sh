@@ -790,6 +790,16 @@ expect_input_fail \
     '{"bad/key":"value"}' \
     sib mktrace-json
 
+colon_json='{"sib:model":"m","content":"x"}'
+assert_json_eq "$colon_json" \
+    "$(sib ls-trace-json "$(printf '%s' "$colon_json" | sib mktrace-json)")" \
+    "mktrace-json accepts a colon-containing key"
+
+expect_input_fail \
+    "mktrace-json rejects a key starting with colon" \
+    '{":model":"value"}' \
+    sib mktrace-json
+
 expect_input_fail \
     "mktrace-json rejects unexpected positional arguments" \
     '{"content":"value"}' \
