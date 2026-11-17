@@ -157,7 +157,7 @@ cmd_mktrace_json() {
         || die 'input must be a JSON object containing only string values'
 
     tr=$(jq -r 'keys_unsorted[]' <<<"$json" | while IFS= read -r key; do
-             [[ -z $key ]] && die empty key detacted on JSON
+             [[ -z $key ]] && die empty key detected on JSON
              jq -j --arg k "$key" '.[$k]' <<<"$json" | tf_blob "$key"
          done) || die
     cmd_mktrace <<<"$tr"
@@ -297,10 +297,11 @@ cmd_symbolic_ref() {
 
 usage() {
     cat <<EOF >&2
-usage: sib <ask|log|show|switch|save> [-h ...]
+usage: sib <ask|log|show|switch|save|tool> [-h ...]
        sib edit <chain-ish>
        sib status
        sib init
+       sib version
 EOF
 }
 

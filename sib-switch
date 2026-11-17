@@ -61,7 +61,7 @@ if [[ -n $symbolic ]]; then
     target=$(conv_ref "$chain")
     sib symbolic-ref -m "switch to symbolic $chain" HEAD "$target" ||
         die "invalid name: $chain"
-    echo "HEAD now followes $chain" >&2
+    echo "HEAD now follows $chain" >&2
 else
     res=$(sib rev-parse "$chain" 2>/dev/null) || die "$chain is invalid"
     from=$(sib git rev-parse -q --verify --short HEAD) || from='(unborn)'

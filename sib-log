@@ -12,7 +12,7 @@ die() {
 usage() {
     cat <<EOF
 usage: ${NAME} [-n <lines>] [<chain-ish>]
-  -n Truncate content to LINES (disables markdown rendering)
+  -n Truncate content to LINES
   -h Show this help
 EOF
 }

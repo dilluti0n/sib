@@ -75,7 +75,7 @@ with `sib switch eva-3.0-go-off` -- than why `switch` exists?
 
 	sib switch -f eva-3.0-go-off
 
-makes `eva-3.0-go-off` save followes the `HEAD`. i.e. next `sib ask`
+makes `eva-3.0-go-off` save follows the `HEAD`. i.e. next `sib ask`
 will move `eva-3.0-go-off` along with. You can always go back to
 non-following state simply calling `sib switch HEAD` once.
 

@@ -95,9 +95,9 @@ while :; do
     {
         res=$(sib rev-jsonl $parent \
                   | plm-wrap -f plm -t request \
-                  | plm-send) || die 'fail to recieve API call'
+                  | plm-send) || die 'fail to receive API call'
 
-        [[ -n $res ]] || die 'fail to recieve API call'
+        [[ -n $res ]] || die 'fail to receive API call'
 
         [[ -z "${SIB_DEBUG:-}" ]] || echo "sib-ask: res: $res" >&2
     } 3>&1

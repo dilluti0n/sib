@@ -22,7 +22,7 @@ EOF
 }
 
 n_lines= key=
-while getopts rhn:k:c o; do
+while getopts hn:k:c o; do
     case $o in
         h) usage; exit 0 ;;
         n) n_lines="$OPTARG" ;;
@@ -68,7 +68,7 @@ echo "$lst" \
     | while IFS=$'\t' read -r value key; do
 
     # Should not die here
-    [[ -z $value ]] && die "mallformed ls-tree format $lst"
+    [[ -z $value ]] && die "malformed ls-tree format $lst"
 
     value=$(sib git cat-file blob $value)
     echo "$key: $value"
