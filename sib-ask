@@ -25,7 +25,8 @@ usage: ${NAME} [-nrcjh] [-p <chain-ish>] [-t <name>] [-e <endpoint>] [-m <model>
   -h     Show this help
 
 Exit status is 10 when the response ends with a function_call.
-Tools are read from the JSON file PLM_TOOLS (config sib.tools);
+Tools are read from the JSON file PLM_TOOLS (config sib.tools,
+default \$SIB_DIR/tools/tools.json);
 PLM_TOOL_CHOICE sets tool_choice.
 EOF
 }

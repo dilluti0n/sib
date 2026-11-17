@@ -1256,7 +1256,7 @@ printf 'plain' | sib ask >/dev/null 2>&1 || status=$?
 assert_eq "0" "$status" "sib ask exits 0 when the response ends with a message"
 
 #
-# sib ask -j and tool-pending
+# sib ask -j and sib tool
 #
 
 expect_fail "sib ask rejects -r with -j" sib ask -r -j
@@ -1265,13 +1265,13 @@ printf 'start' | MOCK_FUNCTION_CALL=1 sib ask -n >/dev/null 2>&1 || :
 fc_head=$(sib rev-parse HEAD)
 
 assert_json_eq '{"type":"function_call","call_id":"call_1","name":"f","content":"{}"}' \
-    "$(sib tool-pending)" \
-    "tool-pending lists a function_call without output"
+    "$(sib tool pending)" \
+    "tool pending lists a function_call without output"
 
-assert_eq "" "$(sib tool-pending "$(parent_of "$fc_head")")" \
-    "tool-pending prints nothing when no call is pending"
+assert_eq "" "$(sib tool pending "$(parent_of "$fc_head")")" \
+    "tool pending prints nothing when no call is pending"
 
-sib tool-pending |
+sib tool pending |
     jq -c '{type: "function_call_output", call_id, content: "result"}' |
     sib ask -j -c >/dev/null
 
@@ -1281,8 +1281,8 @@ assert_eq "function_call_output" "$(sib show -k type HEAD)" \
 assert_eq "$fc_head" "$(parent_of "$(sib rev-parse HEAD)")" \
     "sib ask -j chains on top of the function_call"
 
-assert_eq "" "$(sib tool-pending)" \
-    "tool-pending ignores calls answered by function_call_output"
+assert_eq "" "$(sib tool pending)" \
+    "tool pending ignores calls answered by function_call_output"
 
 status=0
 printf '%s\n' \
@@ -1339,6 +1339,62 @@ assert_eq $'hi\nfunction_call: get_weather({"city":"Seoul"})' \
 assert_eq $'hi\nfunction_call: get_weather({"city":"Seoul"})' \
     "$(plm_send_display "$TMPDIR_ROOT/json.http")" \
     "plm-send shows function calls in a JSON response"
+
+#
+# sib tool run and $SIB_DIR/tools
+#
+
+mkdir -p "$SIB_DIR/tools"
+cat >"$SIB_DIR/tools/echo_args" <<'EOF'
+#!/usr/bin/env bash
+printf 'got:'; cat; echo err >&2; exit 3
+EOF
+chmod +x "$SIB_DIR/tools/echo_args"
+
+assert_json_eq \
+    '{"type":"function_call_output","call_id":"c1","content":"got:{\"a\":1}err"}' \
+    "$(printf '%s\n' '{"type":"function_call","call_id":"c1","name":"echo_args","content":"{\"a\":1}"}' |
+        sib tool run)" \
+    "tool run passes arguments on stdin and captures stdout and stderr"
+
+assert_eq $'c1\nc2' \
+    "$(printf '%s\n' \
+        '{"type":"function_call","call_id":"c1","name":"echo_args","content":"{}"}' \
+        '{"type":"function_call","call_id":"c2","name":"echo_args","content":"{}"}' |
+        sib tool run | jq -r .call_id)" \
+    "tool run answers every call in order"
+
+expect_input_fail \
+    "tool run fails on an unknown tool" \
+    '{"type":"function_call","call_id":"c1","name":"nope","content":"{}"}' \
+    sib tool run
+
+expect_input_fail \
+    "tool run rejects a tool name with a path" \
+    '{"type":"function_call","call_id":"c1","name":"../tools/echo_args","content":"{}"}' \
+    sib tool run
+
+assert_eq "" \
+    "$(printf '%s\n' \
+        '{"type":"function_call","call_id":"c1","name":"echo_args","content":"{}"}' \
+        '{"type":"function_call","call_id":"c2","name":"nope","content":"{}"}' |
+        sib tool run 2>/dev/null || :)" \
+    "tool run runs nothing when any call fails"
+
+assert_eq "" "$(sib tool run </dev/null)" \
+    "tool run prints nothing for no calls"
+
+printf '[]' >"$SIB_DIR/tools/tools.json"
+assert_contains "$(env -u PLM_TOOLS sib status)" "PLM_TOOLS:    $SIB_DIR/tools/tools.json" \
+    "PLM_TOOLS defaults to \$SIB_DIR/tools/tools.json"
+rm -f "$SIB_DIR/tools/tools.json"
+
+assert_eq "" "$(env -u PLM_TOOLS sib status | grep PLM_TOOLS || :)" \
+    "PLM_TOOLS stays unset without tools.json"
+
+assert_eq "ok" \
+    "$(printf '%s' '{"command":"echo ok"}' | "$SOURCE_DIR/contrib/tools/bash")" \
+    "contrib bash tool runs the command"
 
 #
 # Final status
