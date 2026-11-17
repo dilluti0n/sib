@@ -52,45 +52,45 @@ curl -sS -N -i "$PLM_ENDPOINT" -H "Content-Type: application/json" "${auth_heade
             ;;
     esac
 
-    current_event=
-    { printf '%s\n' "$line"; cat; } | while IFS= read -r line; do
-        line=${line%$'\r'}
-        case $line in
-            event:*)
-                current_event=${line#event:}
-                current_event=${current_event# }
-                ;;
-            data:*)
-                payload=${line#data:}
-                payload=${payload# }
-                case $current_event in
-                    response.output_text.delta)
-                        jq -rj '.delta // empty' <<<"$payload" >&3
-                        ;;
-                    response.output_text.done)
-                        printf '\n' >&3
-                        ;;
-                    response.reasoning_summary_text.delta)
-                        jq -rj '.delta // empty' <<<"$payload" >&3
-                        ;;
-                    response.reasoning_summary_text.done)
-                        printf '\n\n' >&3
-                        ;;
-                    response.output_item.done)
-                        jq -r ".item | select(.type == \"function_call\") | $fc_line" \
-                           <<<"$payload" >&3
-                        ;;
-                    response.completed)
-                        jq '.response' <<<"$payload"
-                        ;;
-                    *)
-                        if [[ -n ${PLM_DEBUG:-} ]]; then
-                            echo "event: $current_event" >&3
-                            echo "data: $payload" >&3
-                        fi
-                        ;;
-                esac
-                ;;
-        esac
-    done
+    tmp=$(mktemp) || exit
+    trap 'rm -f "$tmp"' EXIT
+
+    # Display deltas as they arrive with a single jq
+    sed -u 's/\r$//; /^data:/!d; s/^data: \{0,1\}//' | tee "$tmp" |
+        jq --unbuffered -Rrj --arg debug "${PLM_DEBUG:-}" "fromjson? |
+            if .type == \"response.output_text.delta\" then .delta // empty
+            elif .type == \"response.output_text.done\" then \"\\n\"
+            elif .type == \"response.reasoning_summary_text.delta\" then .delta // empty
+            elif .type == \"response.reasoning_summary_text.done\" then \"\\n\\n\"
+            elif .type == \"response.output_item.done\" then
+                .item | select(.type == \"function_call\") | $fc_line + \"\\n\"
+            elif \$debug != \"\" then \"event: \\(.type)\\ndata: \\(tojson)\\n\"
+            else empty end" >&3
+
+    last=$(jq -Rc 'fromjson? | select(.type == "response.completed"
+                                      or .type == "response.incomplete"
+                                      or .type == "response.failed"
+                                      or .type == "error")' "$tmp" | tail -n 1)
+
+    case $(jq -r '.type // empty' <<<"$last") in
+        response.completed)
+            jq '.response' <<<"$last"
+            ;;
+        response.incomplete)
+            echo "incomplete response: $(jq -r '.response.incomplete_details.reason // "unknown"' <<<"$last")" >&2
+            jq '.response' <<<"$last"
+            ;;
+        response.failed)
+            echo "response failed: $(jq -r '.response.error | "\(.code // "unknown"): \(.message // "")"' <<<"$last")" >&2
+            exit 1
+            ;;
+        error)
+            echo "stream error: $(jq -r '"\(.code // "unknown"): \(.message // .error.message // "")"' <<<"$last")" >&2
+            exit 1
+            ;;
+        *)
+            echo "stream ended without response" >&2
+            exit 1
+            ;;
+    esac
 }
