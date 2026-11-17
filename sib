@@ -305,7 +305,14 @@ usage: sib <ask|log|show|switch|save|tool> [-h ...]
 EOF
 }
 
+# Map git >= 2.46 subcommands to options older git understands
 cmd_config() {
+    case ${1-} in
+        get) shift; set -- --get "$@" ;;
+        set) shift ;;
+        unset) shift; set -- --unset "$@" ;;
+        list) shift; set -- --list "$@" ;;
+    esac
     lgit config "$@"
 }
 
