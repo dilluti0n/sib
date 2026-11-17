@@ -216,14 +216,19 @@ done
 
 case "$from:$to" in
     text:plm)
-        jq -Rs \
+        jq -Rsc \
             --arg role user \
             --arg model "${PLM_MODEL:-mock-model}" \
             '{
+                type: "message",
                 role: $role,
                 content: .,
-                model: $model
+                "sib:model": $model
             }'
+        ;;
+
+    plm:plm)
+        cat
         ;;
 
     plm:request)
@@ -235,14 +240,27 @@ case "$from:$to" in
         # Consume the provider response.
         cat >/dev/null
 
+        if [[ -n ${MOCK_FUNCTION_CALL_ONCE:-} && ! -e $MOCK_FUNCTION_CALL_ONCE ]]; then
+            : >"$MOCK_FUNCTION_CALL_ONCE"
+            jq -nc --arg name "${MOCK_FC_NAME:-echo_args}" --arg args "${MOCK_FC_ARGS:-{\}}" \
+                '{type: "function_call", call_id: "call_once", name: $name, content: $args}'
+            exit
+        fi
+
+        if [[ -n ${MOCK_FUNCTION_CALL:-} ]]; then
+            jq -nc '{type: "function_call", call_id: "call_1", name: "f", content: "{}"}'
+            exit
+        fi
+
         jq -nc \
             --arg role "${role:-assistant}" \
             --arg content "mock assistant" \
             --arg model "${PLM_MODEL:-mock-model}" \
             '{
+                type: "message",
                 role: $role,
                 content: $content,
-                model: $model
+                "sib:model": $model
             }'
         ;;
 
@@ -1126,6 +1144,314 @@ rm -f "$RUNTIME/sib-rev-parse"
 sib config set sib.model "$model_before_reinit"
 sib config set sib.endpoint "$endpoint_before_reinit"
 
+
+#
+# plm-wrap key format (real plm-wrap, not the mock)
+#
+
+PLM_WRAP="$SOURCE_DIR/plm-wrap"
+
+raw_response='{
+  "id": "resp_1", "object": "response", "status": "completed", "model": "m1",
+  "output": [
+    {"type": "reasoning", "id": "rs_1", "status": "completed",
+     "summary": [{"type": "summary_text", "text": "a"}, {"type": "summary_text", "text": "b"}],
+     "encrypted_content": "ENC"},
+    {"type": "function_call", "id": "fc_1", "status": "completed",
+     "call_id": "call_1", "name": "get_weather", "arguments": "{\"city\":\"Seoul\"}"},
+    {"type": "web_search_call", "id": "ws_1", "status": "completed"},
+    {"type": "message", "id": "msg_1", "status": "incomplete", "role": "assistant",
+     "content": [{"type": "output_text", "text": "x", "annotations": []},
+                 {"type": "output_text", "text": "y", "annotations": []}]}
+  ]
+}'
+
+assert_eq \
+    "$(jq -c . <<'EOF'
+{"type":"reasoning","id":"rs_1","content":"a\n\nb","encrypted_content":"ENC","sib:model":"m1"}
+{"type":"function_call","call_id":"call_1","name":"get_weather","content":"{\"city\":\"Seoul\"}","sib:model":"m1"}
+{"type":"message","role":"assistant","content":"x\n\ny","status":"incomplete","sib:model":"m1"}
+EOF
+)" \
+    "$("$PLM_WRAP" -f response -t plm <<<"$raw_response")" \
+    "plm-wrap maps each output item to one plm line"
+
+assert_eq \
+    '{"type":"message","role":"user","content":"hi\n"}' \
+    "$(printf 'hi\n' | "$PLM_WRAP" -f text -t plm)" \
+    "plm-wrap text input is a typed user message"
+
+plm_chain='{"type":"message","role":"user","content":"q","sib:model":"m1"}
+{"type":"reasoning","id":"rs_1","content":"a","encrypted_content":"ENC"}
+{"type":"reasoning","content":"","encrypted_content":"ENC2"}
+{"type":"reasoning","content":"no enc"}
+{"type":"function_call","call_id":"call_1","name":"f","content":"{}","status":"completed"}
+{"type":"function_call_output","call_id":"call_1","name":"f","content":"out"}
+{"type":"web_search_call","content":"skip"}'
+
+assert_eq \
+    "$(jq -c . <<'EOF'
+[{"type":"message","role":"user","content":"q"},
+ {"type":"reasoning","id":"rs_1","summary":[{"type":"summary_text","text":"a"}],"encrypted_content":"ENC"},
+ {"type":"reasoning","summary":[],"encrypted_content":"ENC2"},
+ {"type":"function_call","call_id":"call_1","name":"f","arguments":"{}"},
+ {"type":"function_call_output","call_id":"call_1","output":"out"}]
+EOF
+)" \
+    "$(PLM_MODEL=m PLM_USE_STREAM=false "$PLM_WRAP" -f plm -t request <<<"$plm_chain" | jq -c .input)" \
+    "plm-wrap builds request input from per-type whitelist"
+
+assert_eq \
+    '[{"type":"message","role":"assistant","content":"a"},{"type":"message","role":"user","content":"q"}]' \
+    "$(printf '%s\n' '{"role":"assistant","content":"a","model":"m"}' '{"role":"user","content":"q"}' |
+        PLM_MODEL=m PLM_USE_STREAM=false "$PLM_WRAP" -f plm -t request | jq -c .input)" \
+    "plm-wrap treats lines without type as messages"
+
+response_chain=$("$PLM_WRAP" -f response -t plm <<<"$raw_response" | sib chain-jsonl)
+
+assert_eq "3" "$(commit_count "$response_chain")" \
+    "one response with three known items chains three commits"
+
+tools_file="$TMPDIR_ROOT/tools.json"
+printf '%s' '[{"type":"function","name":"f","parameters":{"type":"object","properties":{}}}]' >"$tools_file"
+
+tool_request=$(printf '%s\n' '{"type":"message","role":"user","content":"q"}' |
+    PLM_MODEL=m PLM_USE_STREAM=false PLM_TOOLS="$tools_file" "$PLM_WRAP" -f plm -t request)
+
+assert_eq "$(jq -c . "$tools_file")" "$(jq -c .tools <<<"$tool_request")" \
+    "plm-wrap passes PLM_TOOLS verbatim as tools"
+
+assert_eq "null" "$(jq -c .tool_choice <<<"$tool_request")" \
+    "plm-wrap omits tool_choice by default"
+
+assert_eq "null" \
+    "$(printf '%s\n' '{"content":"q"}' |
+        PLM_MODEL=m PLM_USE_STREAM=false "$PLM_WRAP" -f plm -t request | jq -c .tools)" \
+    "plm-wrap omits tools when PLM_TOOLS is unset"
+
+assert_eq '"required"' \
+    "$(printf '%s\n' '{"content":"q"}' |
+        PLM_MODEL=m PLM_USE_STREAM=false PLM_TOOL_CHOICE=required \
+        "$PLM_WRAP" -f plm -t request | jq -c .tool_choice)" \
+    "plm-wrap passes a string tool_choice"
+
+assert_eq '{"type":"function","name":"f"}' \
+    "$(printf '%s\n' '{"content":"q"}' |
+        PLM_MODEL=m PLM_USE_STREAM=false PLM_TOOL_CHOICE='{"type":"function","name":"f"}' \
+        "$PLM_WRAP" -f plm -t request | jq -c .tool_choice)" \
+    "plm-wrap passes a JSON object tool_choice"
+
+printf '{}' >"$TMPDIR_ROOT/bad-tools.json"
+assert_eq "false" "$(jq -c .store <<<"$tool_request")" \
+    "plm-wrap sends store false"
+
+assert_eq '{"summary":"auto"}' "$(jq -c .reasoning <<<"$tool_request")" \
+    "plm-wrap asks for reasoning summaries"
+
+expect_input_fail \
+    "plm-wrap rejects tools that are not an array" \
+    '{"content":"q"}' \
+    env PLM_MODEL=m PLM_USE_STREAM=false PLM_TOOLS="$TMPDIR_ROOT/bad-tools.json" \
+    "$PLM_WRAP" -f plm -t request
+
+sib config set sib.tools "$tools_file"
+assert_contains "$(env -u PLM_TOOLS sib status)" "PLM_TOOLS:    $tools_file" \
+    "sib.tools configuration sets PLM_TOOLS"
+sib config unset sib.tools
+
+status=0
+printf 'call a tool' | MOCK_FUNCTION_CALL=1 sib ask -n >/dev/null 2>&1 || status=$?
+assert_eq "10" "$status" "sib ask exits 10 when the function_call has no tool"
+
+assert_eq "function_call" "$(sib show -k type HEAD)" \
+    "sib ask still commits the function_call before exiting 10"
+
+status=0
+printf 'plain' | sib ask >/dev/null 2>&1 || status=$?
+assert_eq "0" "$status" "sib ask exits 0 when the response ends with a message"
+
+#
+# sib ask -j and sib tool
+#
+
+expect_fail "sib ask rejects -r with -j" sib ask -r -j
+
+printf 'start' | MOCK_FUNCTION_CALL=1 sib ask -n >/dev/null 2>&1 || :
+fc_head=$(sib rev-parse HEAD)
+
+assert_json_eq '{"type":"function_call","call_id":"call_1","name":"f","content":"{}"}' \
+    "$(sib tool pending)" \
+    "tool pending lists a function_call without output"
+
+assert_eq "" "$(sib tool pending "$(parent_of "$fc_head")")" \
+    "tool pending prints nothing when no call is pending"
+
+sib tool pending |
+    jq -c '{type: "function_call_output", call_id, content: "result"}' |
+    sib ask -j -c >/dev/null
+
+assert_eq "function_call_output" "$(sib show -k type HEAD)" \
+    "sib ask -j -c chains plm jsonl input as is"
+
+assert_eq "$fc_head" "$(parent_of "$(sib rev-parse HEAD)")" \
+    "sib ask -j chains on top of the function_call"
+
+assert_eq "" "$(sib tool pending)" \
+    "tool pending ignores calls answered by function_call_output"
+
+status=0
+printf '%s\n' \
+    '{"type":"function_call_output","call_id":"call_9","content":"a"}' \
+    '{"type":"function_call_output","call_id":"call_8","content":"b"}' |
+    sib ask -j >/dev/null 2>&1 || status=$?
+assert_eq "0" "$status" "sib ask -j sends after chaining several items"
+
+assert_eq $'call_9\ncall_8\nmock assistant' \
+    "$(sib rev-jsonl HEAD | tail -n 3 | jq -r '.call_id // .content')" \
+    "sib ask -j keeps input order and appends the response"
+
+#
+# plm-send display (real plm-send with a fake curl)
+#
+
+FAKE_BIN="$TMPDIR_ROOT/fake-bin"
+mkdir -p "$FAKE_BIN"
+cat >"$FAKE_BIN/curl" <<'EOF'
+#!/usr/bin/env bash
+cat >/dev/null
+cat "$FAKE_CURL_RESPONSE"
+EOF
+chmod +x "$FAKE_BIN/curl"
+
+plm_send_display() {
+    local display="$TMPDIR_ROOT/display"
+    FAKE_CURL_RESPONSE=$1 PATH="$FAKE_BIN:$PATH" PLM_ENDPOINT=http://fake.invalid \
+        "$SOURCE_DIR/plm-send" </dev/null >/dev/null 3>"$display"
+    cat "$display"
+}
+
+fc_item='{"type":"function_call","call_id":"call_1","name":"get_weather","arguments":"{\"city\":\"Seoul\"}"}'
+msg_item='{"type":"message","role":"assistant","content":[{"type":"output_text","text":"hi"}]}'
+
+{
+    printf 'HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n'
+    printf 'event: response.reasoning_summary_text.delta\ndata: {"delta":"thin"}\n\n'
+    printf 'event: response.reasoning_summary_text.delta\ndata: {"delta":"king"}\n\n'
+    printf 'event: response.reasoning_summary_text.done\ndata: {}\n\n'
+    printf 'event: response.output_text.delta\ndata: {"delta":"hi"}\n\n'
+    printf 'event: response.output_text.done\ndata: {}\n\n'
+    printf 'event: response.output_item.done\ndata: {"item":%s}\n\n' "$msg_item"
+    printf 'event: response.output_item.done\ndata: {"item":%s}\n\n' "$fc_item"
+    printf 'event: response.completed\ndata: {"response":{"output":[]}}\n\n'
+} >"$TMPDIR_ROOT/stream.http"
+
+assert_eq $'thinking\n\nhi\nfunction_call: get_weather({"city":"Seoul"})' \
+    "$(plm_send_display "$TMPDIR_ROOT/stream.http")" \
+    "plm-send shows function calls in a stream"
+
+{
+    printf 'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n'
+    printf '{"output":[%s,%s,%s]}\n' \
+        '{"type":"reasoning","summary":[{"type":"summary_text","text":"thinking"}]}' \
+        "$msg_item" "$fc_item"
+} >"$TMPDIR_ROOT/json.http"
+
+assert_eq $'thinking\n\nhi\nfunction_call: get_weather({"city":"Seoul"})' \
+    "$(plm_send_display "$TMPDIR_ROOT/json.http")" \
+    "plm-send shows function calls in a JSON response"
+
+#
+# sib tool run and $SIB_DIR/tools
+#
+
+mkdir -p "$SIB_DIR/tools"
+cat >"$SIB_DIR/tools/echo_args" <<'EOF'
+#!/usr/bin/env bash
+printf 'got:'; cat; echo err >&2; exit 3
+EOF
+chmod +x "$SIB_DIR/tools/echo_args"
+
+assert_json_eq \
+    '{"type":"function_call_output","call_id":"c1","content":"got:{\"a\":1}err"}' \
+    "$(printf '%s\n' '{"type":"function_call","call_id":"c1","name":"echo_args","content":"{\"a\":1}"}' |
+        sib tool run)" \
+    "tool run passes arguments on stdin and captures stdout and stderr"
+
+assert_eq $'c1\nc2' \
+    "$(printf '%s\n' \
+        '{"type":"function_call","call_id":"c1","name":"echo_args","content":"{}"}' \
+        '{"type":"function_call","call_id":"c2","name":"echo_args","content":"{}"}' |
+        sib tool run | jq -r .call_id)" \
+    "tool run answers every call in order"
+
+expect_input_fail \
+    "tool run fails on an unknown tool" \
+    '{"type":"function_call","call_id":"c1","name":"nope","content":"{}"}' \
+    sib tool run
+
+expect_input_fail \
+    "tool run rejects a tool name with a path" \
+    '{"type":"function_call","call_id":"c1","name":"../tools/echo_args","content":"{}"}' \
+    sib tool run
+
+assert_eq "" \
+    "$(printf '%s\n' \
+        '{"type":"function_call","call_id":"c1","name":"echo_args","content":"{}"}' \
+        '{"type":"function_call","call_id":"c2","name":"nope","content":"{}"}' |
+        sib tool run 2>/dev/null || :)" \
+    "tool run runs nothing when any call fails"
+
+assert_eq "" "$(sib tool run </dev/null)" \
+    "tool run prints nothing for no calls"
+
+printf '[]' >"$SIB_DIR/tools/tools.json"
+assert_contains "$(env -u PLM_TOOLS sib status)" "PLM_TOOLS:    $SIB_DIR/tools/tools.json" \
+    "PLM_TOOLS defaults to \$SIB_DIR/tools/tools.json"
+rm -f "$SIB_DIR/tools/tools.json"
+
+assert_eq "" "$(env -u PLM_TOOLS sib status | grep PLM_TOOLS || :)" \
+    "PLM_TOOLS stays unset without tools.json"
+
+assert_eq "ok" \
+    "$(printf '%s' '{"command":"echo ok"}' | "$SOURCE_DIR/contrib/tools/bash")" \
+    "contrib bash tool runs the command"
+
+status=0
+printf 'use a tool' | MOCK_FUNCTION_CALL_ONCE="$TMPDIR_ROOT/fc-once" sib ask -n >/dev/null 2>&1 ||
+    status=$?
+assert_eq "0" "$status" "sib ask runs the tool and asks again"
+
+assert_eq $'message\nfunction_call\nfunction_call_output\nmessage' \
+    "$(sib rev-jsonl HEAD | jq -r .type)" \
+    "sib ask chains call, tool output and the final message"
+
+assert_eq "got:{}err" "$(sib rev-jsonl HEAD | jq -rs '.[2].content')" \
+    "sib ask stores the tool output"
+
+#
+# contrib sib tool
+#
+
+cp "$SOURCE_DIR/contrib/tools/sib" "$SIB_DIR/tools/sib"
+
+assert_eq "message" \
+    "$(printf '%s' '{"args":["show","-k","type","HEAD"]}' | "$SIB_DIR/tools/sib")" \
+    "contrib sib tool passes args to sib"
+
+assert_eq "sib ask is not allowed from this tool" \
+    "$(printf '%s' '{"args":["ask","-c"]}' | "$SIB_DIR/tools/sib" || :)" \
+    "contrib sib tool refuses ask"
+
+status=0
+printf 'original' |
+    MOCK_FUNCTION_CALL_ONCE="$TMPDIR_ROOT/fc-edit" MOCK_FC_NAME=sib \
+    MOCK_FC_ARGS='{"args":["edit","HEAD~1"],"content":"edited"}' \
+    sib ask -n >/dev/null 2>&1 || status=$?
+assert_eq "0" "$status" "sib ask runs the sib tool"
+
+assert_eq $'edited\nsib\nfunction_call_output\nmock assistant' \
+    "$(sib rev-jsonl HEAD | jq -r 'if .type == "message" then .content elif .type == "function_call" then .name else .type end')" \
+    "sib ask continues from the chain edited by the sib tool"
 
 #
 # Final status

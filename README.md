@@ -182,7 +182,8 @@ And run with
 
 What makes this cheap is the plumbing underneath. A conversation is a
 *chain* of commits. Each commit's tree is a *trace*, a flat key-value
-map (`role`, `content`, `model`, ...) whose values are blobs.
+map (`type`, `role`, `content`, ...) whose values are blobs. See
+[reserved keys](./Documentation/KeyFormat.md).
 
     sib rev-jsonl <chain>         Print <chain> to jsonl format
     sib chain-jsonl [-p <chain>]  Chain jsonl file to sib store and print its id
@@ -201,7 +202,8 @@ tracker](https://github.com/dilluti0n/sib/issues).
 ### Minimum rules for compatibility
 
 - Keys must match `[A-Za-z_][A-Za-z0-9._:-]*`.
-- The other keys don't matter except `content`.
+- `type` defaults to `message`; the other [reserved
+  keys](./Documentation/KeyFormat.md) depend on it.
 - The commit date is fixed at `999999999 +0000`, with author and
   committer `Sibyl <sib@local>`. Through this, we can obtain the same
   hash for the same conversation chain.

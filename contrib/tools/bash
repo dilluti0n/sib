@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# stdin: {"command": "..."}
+cmd=$(jq -r .command) || exit
+exec bash -c "$cmd" 2>&1 </dev/null

@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# Copyright 2026 Hee-Suk Kim <hskim@dilluti0n.com>
+# SPDX-License-Identifier: GPL-3.0-only
+
+set -euo pipefail
+
+NAME="$(basename -- "$0")"
+TOOL_DIR="$SIB_DIR/tools"
+
+die() {
+    [ $# -eq 0 ] || echo fatal: "$@" >&2
+    exit 1
+}
+
+usage() {
+    cat <<EOF
+usage: ${NAME} pending [<chain-ish>]
+       ${NAME} run
+
+  pending  Print function_call items on <chain-ish> (default HEAD)
+           that have no function_call_output with the same call_id
+  run      Read function_call items from stdin, run
+           \$SIB_DIR/tools/<name> for each with the arguments on stdin,
+           and print function_call_output items
+EOF
+}
+
+cmd_pending() {
+    [[ $# -le 1 ]] || { usage >&2; exit 1; }
+
+    local chain
+    chain=$(sib rev-parse "${1:-HEAD}" 2>/dev/null) ||
+        die "invalid chain: ${1:-HEAD}"
+
+    sib rev-jsonl "$chain" | jq -c -s '
+        [ .[] | select(.type == "function_call_output") | .call_id ] as $done
+        | .[]
+        | select(.type == "function_call" and (.call_id as $id | $done | index($id) | not))'
+}
+
+cmd_run() {
+    [[ $# -eq 0 ]] || { usage >&2; exit 1; }
+
+    local calls=() call name id out
+
+    while IFS= read -r call || [[ -n $call ]]; do
+        [[ -n $call ]] || continue
+        calls+=("$call")
+    done
+
+    # Check every call first, so nothing runs when one of them fails
+    for call in ${calls[@]+"${calls[@]}"}; do
+        name=$(jq -r 'select(.type == "function_call") | .name // empty' <<<"$call") ||
+            die "invalid input: $call"
+        [[ -n $name ]] || die "not a function_call: $call"
+        # prevent ../../../bin/sh
+        [[ $name != */* && -x $TOOL_DIR/$name ]] ||
+            die "no such tool: $TOOL_DIR/$name"
+    done
+
+    for call in ${calls[@]+"${calls[@]}"}; do
+        name=$(jq -r .name <<<"$call")
+        id=$(jq -r .call_id <<<"$call")
+        out=$(jq -j '.content // ""' <<<"$call" | "$TOOL_DIR/$name" 2>&1) || :
+        jq -nc --arg id "$id" --arg out "$out" \
+            '{type: "function_call_output", call_id: $id, content: $out}'
+    done
+}
+
+[[ $# -ge 1 ]] || { usage >&2; exit 1; }
+
+sub=$1; shift
+case $sub in
+    pending) cmd_pending "$@" ;;
+    run)     cmd_run "$@" ;;
+    -h)      usage ;;
+    *)       usage >&2; exit 1 ;;
+esac

@@ -335,7 +335,11 @@ export PATH="$script_dir:$PATH"
 : "${PLM_ENDPOINT:=$(cmd_config get sib.endpoint 2>/dev/null)}"
 : "${PLM_ENDPOINT:=$DEFAULT_PLM_ENDPOINT}"
 
-export PLM_MODEL PLM_ENDPOINT
+# Tools are sent only when configured or $SIB_DIR/tools/tools.json exists
+: "${PLM_TOOLS:=$(cmd_config get --type=path sib.tools 2>/dev/null)}"
+[[ -n $PLM_TOOLS || ! -f $SIB_DIR/tools/tools.json ]] || PLM_TOOLS=$SIB_DIR/tools/tools.json
+
+export PLM_MODEL PLM_ENDPOINT PLM_TOOLS
 
 fn="cmd_${cmd//-/_}"
 if declare -F "$fn" > /dev/null; then

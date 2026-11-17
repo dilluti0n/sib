@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Available formats: plm/request(only for dest)/response(only for src)/text(markdown)
 #
-# plm: (model, content, role) jsonl
+# plm: one item per line; see Documentation/KeyFormat.md
 
 set -euo pipefail
 
@@ -36,25 +36,29 @@ done
 shift $((OPTIND - 1))
 
 text_to_plm() {
-    jq -Rs --arg role "${PLM_ROLE:-user}" '{role:$role, content:.}' | jq -c .
+    jq -Rsc --arg role "${PLM_ROLE:-user}" '{type:"message", role:$role, content:.}'
 }
 
+# One plm line per output item; see Documentation/KeyFormat.md
 response_to_plm() {
-  jq -c '
-    ( [ .output[] | select(.type=="message" and .role=="assistant") ] | last? ) as $m
-    | {
-        role:   ($m.role // "assistant"),
-        content: (
-          if $m == null then
-            (.output_text // "")
-          else
-            ($m.content // []
-              | map(select(.type=="output_text" or .type=="text") | .text)
-              | join("\n\n"))
-          end
-        ),
-        model: .model
-      }'
+    jq -c '
+      .model as $model
+      | .output[]
+      | (if .type == "message" then
+             {role,
+              content: ([.content[]? | select(.type == "output_text" or .type == "text") | .text]
+                        | join("\n\n"))}
+         elif .type == "function_call" then
+             {call_id, name, content: .arguments}
+         elif .type == "reasoning" then
+             {id, content: ([.summary[]? | .text] | join("\n\n")), encrypted_content}
+         else
+             empty
+         end) as $item
+      | {type} + $item
+        + (if .status != null and .status != "completed" then {status} else {} end)
+        + {"sib:model": $model}
+      | with_entries(select(.value != null))'
 }
 
 src_to_plm() {
@@ -70,18 +74,40 @@ src_to_plm() {
 plm_to_text() {
     jq -sr \
        'map(
-            if .role == "user" then
+            .type //= "message"
+            | if .type == "message" and .role == "user" then
                 .content | split("\n") | map(" > " + . ) | join("\n")
-            elif .role == "assistant" then
+            elif .type == "message" and .role == "assistant" then
                 "✨ " + .content
+            elif .type == "function_call" then
+                "🔧 \(.name)(\(.content))"
+            elif .type == "function_call_output" then
+                "↩ " + .content
+            elif .type == "reasoning" then
+                "💭 " + .content
             else
                 .content
             end
         ) | join("\n\n")'
 }
 
+# Build request input from a per-type whitelist; see Documentation/KeyFormat.md
 plm_to_request() {
+    local tools='null'
+
+    if [[ -n ${PLM_TOOLS:-} ]]; then
+        tools=$(jq -c . -- "$PLM_TOOLS") || die "$PLM_TOOLS: cannot read tools"
+        jq -e 'type == "array"' >/dev/null <<<"$tools" ||
+            die "$PLM_TOOLS: tools must be a JSON array"
+    fi
+
+    # TODO: configure this
+    local reasoning_summary=auto
+
     jq -s \
+       --arg reasoning_summary "$reasoning_summary" \
+       --argjson tools "$tools" \
+       --arg tool_choice "${PLM_TOOL_CHOICE:-}" \
        --arg model "$PLM_MODEL" \
        --argjson stream "$PLM_USE_STREAM" \
        --arg temp "${PLM_TEMP:-}" \
@@ -90,9 +116,32 @@ plm_to_request() {
        --arg ppen "${PLM_PRES_PENALTY:-}" \
        '{
           model: $model,
-          input: [ .[] | {role, content} ],
-          stream: $stream
+          input: [ .[] |
+            if .type == null then
+                {type: "message", role, content}
+            elif .type == "message" then
+                {type, role, content}
+            elif .type == "function_call" then
+                {type, call_id, name, arguments: .content}
+            elif .type == "function_call_output" then
+                {type, call_id, output: .content}
+            elif .type == "reasoning" and .encrypted_content != null then
+                {type, id,
+                 summary: (if (.content // "") == "" then []
+                           else [{type: "summary_text", text: .content}] end),
+                 encrypted_content}
+                | with_entries(select(.value != null))
+            else
+                empty
+            end ],
+          stream: $stream,
+          store: false,
+          reasoning: {summary: $reasoning_summary}
         }
+        | if $tools != null then .tools = $tools else . end
+        | if $tool_choice != "" then
+              .tool_choice = (try ($tool_choice | fromjson) catch $tool_choice)
+          else . end
         | if $temp  != "" then .temperature       = ($temp  | tonumber) else . end
         | if $top_p != "" then .top_p             = ($top_p | tonumber) else . end
         | if $fpen  != "" then .frequency_penalty = ($fpen  | tonumber) else . end
