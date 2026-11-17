@@ -11,7 +11,34 @@
           "description": "The bash command to run."
         }
       },
-      "required": ["command"],
+      "required": [
+        "command"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "type": "function",
+    "name": "sib",
+    "description": "Run a sib command on the store that holds this conversation. Your own conversation is HEAD; each item (message, function call, output) is one commit, so HEAD~1 is the item before the latest. Examples: [\"log\", \"-n\", \"5\"] shows your conversation with each item cut to 5 lines; [\"show\", \"HEAD~3\"] shows one item; [\"save\", \"-l\"] lists saved conversations and [\"log\", \"-n\", \"5\", \"<name>\"] reads one; [\"git\", \"log\", \"--all\", \"-i\", \"-G<regex>\", \"--format=%h\"] finds items whose content matches; [\"edit\", \"HEAD~3\"] with content replaces that item's content in your own conversation, e.g. to shorten it, and the conversation continues from the edited version. ask is not allowed.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Arguments to sib, e.g. [\"show\", \"HEAD~2\"]."
+        },
+        "content": {
+          "type": "string",
+          "description": "New content of the item, only with [\"edit\", <item>]."
+        }
+      },
+      "required": [
+        "args"
+      ],
       "additionalProperties": false
     }
   }

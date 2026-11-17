@@ -242,7 +242,8 @@ case "$from:$to" in
 
         if [[ -n ${MOCK_FUNCTION_CALL_ONCE:-} && ! -e $MOCK_FUNCTION_CALL_ONCE ]]; then
             : >"$MOCK_FUNCTION_CALL_ONCE"
-            jq -nc '{type: "function_call", call_id: "call_once", name: "echo_args", content: "{}"}'
+            jq -nc --arg name "${MOCK_FC_NAME:-echo_args}" --arg args "${MOCK_FC_ARGS:-{\}}" \
+                '{type: "function_call", call_id: "call_once", name: $name, content: $args}'
             exit
         fi
 
@@ -1413,6 +1414,31 @@ assert_eq $'message\nfunction_call\nfunction_call_output\nmessage' \
 
 assert_eq "got:{}err" "$(sib rev-jsonl HEAD | jq -rs '.[2].content')" \
     "sib ask stores the tool output"
+
+#
+# contrib sib tool
+#
+
+cp "$SOURCE_DIR/contrib/tools/sib" "$SIB_DIR/tools/sib"
+
+assert_eq "message" \
+    "$(printf '%s' '{"args":["show","-k","type","HEAD"]}' | "$SIB_DIR/tools/sib")" \
+    "contrib sib tool passes args to sib"
+
+assert_eq "sib ask is not allowed from this tool" \
+    "$(printf '%s' '{"args":["ask","-c"]}' | "$SIB_DIR/tools/sib" || :)" \
+    "contrib sib tool refuses ask"
+
+status=0
+printf 'original' |
+    MOCK_FUNCTION_CALL_ONCE="$TMPDIR_ROOT/fc-edit" MOCK_FC_NAME=sib \
+    MOCK_FC_ARGS='{"args":["edit","HEAD~1"],"content":"edited"}' \
+    sib ask -n >/dev/null 2>&1 || status=$?
+assert_eq "0" "$status" "sib ask runs the sib tool"
+
+assert_eq $'edited\nsib\nfunction_call_output\nmock assistant' \
+    "$(sib rev-jsonl HEAD | jq -r 'if .type == "message" then .content elif .type == "function_call" then .name else .type end')" \
+    "sib ask continues from the chain edited by the sib tool"
 
 #
 # Final status

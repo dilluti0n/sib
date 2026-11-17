@@ -111,7 +111,11 @@ while :; do
 
     # The model is waiting for tool output. Run the tools and ask again;
     # if they cannot run, leave HEAD on the call for the caller.
-    parent=$(sib tool pending $new | sib tool run | sib chain-jsonl -p $new) || exit 10
+    out=$(sib tool pending $new | sib tool run) || exit 10
+
+    # A tool may have moved HEAD (e.g. sib edit); continue from there
+    new=$(sib rev-parse HEAD)
+    parent=$(sib chain-jsonl -p $new <<<"$out") || exit 10
     reflog="tool output of $new"
     sib update-ref -m "ask (tool): $new" $noderef HEAD $parent
 done
