@@ -13,7 +13,7 @@ die() {
 
 usage() {
     cat <<EOF
-usage: ${NAME} [-nrch] [-p <chain-ish>] [-t <name>] [-e <endpoint>] [-m <model>]
+usage: ${NAME} [-nrcjh] [-p <chain-ish>] [-t <name>] [-e <endpoint>] [-m <model>]
   -e     API <endpoint> (PLM_ENDPOINT)
   -m     Model name (PLM_MODEL)
   -p     Parent <chain-ish> to chain on (default HEAD)
@@ -21,6 +21,7 @@ usage: ${NAME} [-nrch] [-p <chain-ish>] [-t <name>] [-e <endpoint>] [-m <model>]
   -n     Start new conversation
   -r     Do not accept or chain input (use with -p)
   -c     Chain user turn only, no API call done
+  -j     Read input as plm jsonl (e.g. function_call_output items)
   -h     Show this help
 
 Exit status is 10 when the response ends with a function_call.
@@ -29,8 +30,8 @@ PLM_TOOL_CHOICE sets tool_choice.
 EOF
 }
 
-parent=HEAD parent_arg= resend= ref= only_chain= noderef=
-while getopts he:m:p:t:nrc o; do
+parent=HEAD parent_arg= resend= ref= only_chain= noderef= input_format=text
+while getopts he:m:p:t:nrcj o; do
     case $o in
         h) usage; exit 0 ;;
         e) export PLM_ENDPOINT="$OPTARG" ;;
@@ -40,10 +41,13 @@ while getopts he:m:p:t:nrc o; do
         n) parent= ;;
         r) resend=1 ;;
         c) only_chain=1 ;;
+        j) input_format=plm ;;
         *) usage; exit 1 ;;
     esac
 done
 shift $((OPTIND - 1))
+
+[[ -z $resend || $input_format == text ]] || die '-r and -j cannot be used together'
 
 [[ -n $ref ]] && sib save -- "$ref"
 
@@ -70,7 +74,8 @@ if [[ -z $resend ]]; then
     # rev-parse prints empty means there is no ref pointed to by
     # $parent. In this case, start a new chain and update HEAD.
     parent_arg="${parent:+-p $parent}"
-    parent=$(plm-wrap -f text -t plm | sib chain-trace-json $parent_arg)
+    parent=$(plm-wrap -f $input_format -t plm | sib chain-jsonl $parent_arg) ||
+        die 'fail to chain input'
 fi
 
 [[ -n $parent ]] || die 'refuse to do worthless job with -nr'

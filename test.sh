@@ -216,7 +216,7 @@ done
 
 case "$from:$to" in
     text:plm)
-        jq -Rs \
+        jq -Rsc \
             --arg role user \
             --arg model "${PLM_MODEL:-mock-model}" \
             '{
@@ -225,6 +225,10 @@ case "$from:$to" in
                 content: .,
                 "sib:model": $model
             }'
+        ;;
+
+    plm:plm)
+        cat
         ;;
 
     plm:request)
@@ -1250,6 +1254,46 @@ assert_eq "function_call" "$(sib show -k type HEAD)" \
 status=0
 printf 'plain' | sib ask >/dev/null 2>&1 || status=$?
 assert_eq "0" "$status" "sib ask exits 0 when the response ends with a message"
+
+#
+# sib ask -j and tool-pending
+#
+
+expect_fail "sib ask rejects -r with -j" sib ask -r -j
+
+printf 'start' | MOCK_FUNCTION_CALL=1 sib ask -n >/dev/null 2>&1 || :
+fc_head=$(sib rev-parse HEAD)
+
+assert_json_eq '{"type":"function_call","call_id":"call_1","name":"f","content":"{}"}' \
+    "$(sib tool-pending)" \
+    "tool-pending lists a function_call without output"
+
+assert_eq "" "$(sib tool-pending "$(parent_of "$fc_head")")" \
+    "tool-pending prints nothing when no call is pending"
+
+sib tool-pending |
+    jq -c '{type: "function_call_output", call_id, content: "result"}' |
+    sib ask -j -c >/dev/null
+
+assert_eq "function_call_output" "$(sib show -k type HEAD)" \
+    "sib ask -j -c chains plm jsonl input as is"
+
+assert_eq "$fc_head" "$(parent_of "$(sib rev-parse HEAD)")" \
+    "sib ask -j chains on top of the function_call"
+
+assert_eq "" "$(sib tool-pending)" \
+    "tool-pending ignores calls answered by function_call_output"
+
+status=0
+printf '%s\n' \
+    '{"type":"function_call_output","call_id":"call_9","content":"a"}' \
+    '{"type":"function_call_output","call_id":"call_8","content":"b"}' |
+    sib ask -j >/dev/null 2>&1 || status=$?
+assert_eq "0" "$status" "sib ask -j sends after chaining several items"
+
+assert_eq $'call_9\ncall_8\nmock assistant' \
+    "$(sib rev-jsonl HEAD | tail -n 3 | jq -r '.call_id // .content')" \
+    "sib ask -j keeps input order and appends the response"
 
 #
 # Final status
