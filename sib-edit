@@ -43,7 +43,7 @@ editor=${EDITOR:-nano}
 $editor $EB || die $editor returns $?
 
 blob=$(sib git hash-object -w $EB) || die
-[[ $(cat oldblob) == $blob ]] && exit 0 # no changes
+[[ $(cat oldblob) == "$blob" ]] && exit 0 # no changes
 
 [[ -z $blob ]] && die
 awk -v blob=$blob -v OFS='\t' '
