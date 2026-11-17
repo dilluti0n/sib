@@ -358,11 +358,6 @@ expect_input_fail \
     '{"content":null}' \
     sib mktrace-json
 
-expect_input_fail \
-    "trace rejects the reserved key prefix" \
-    '{"_SIBTRACE_extra":"bad"}' \
-    sib mktrace-json
-
 jsonl_chain=$(
     printf '%s\n' \
         '{"role":"user","content":"one"}' \
@@ -712,27 +707,9 @@ empty_trace=$(sib mktrace </dev/null)
 assert_json_eq '{}' "$(sib ls-trace-json "$empty_trace")" \
     "mktrace creates an empty logical trace"
 
-magic_blob=$(
-    sib git ls-tree "$empty_trace" |
-        awk '$4 == "_SIBTRACE" { print $3; exit }'
-)
-
-assert_eq "v1" "$(sib git cat-file blob "$magic_blob")" \
-    "mktrace stores the current trace schema version"
-
 expect_input_fail \
     "mktrace rejects duplicate keys" \
     "$(printf 'content\t%s\ncontent\t%s\n' "$raw_blob" "$raw_blob")" \
-    sib mktrace
-
-expect_input_fail \
-    "mktrace rejects the reserved magic key" \
-    "$(printf '_SIBTRACE\t%s\n' "$raw_blob")" \
-    sib mktrace
-
-expect_input_fail \
-    "mktrace rejects reserved magic-prefixed keys" \
-    "$(printf '_SIBTRACE_future\t%s\n' "$raw_blob")" \
     sib mktrace
 
 expect_input_fail \
@@ -822,26 +799,6 @@ expect_input_fail \
 # 12.4 trace schema and object integrity
 #
 
-wrong_version_blob=$(
-    printf '%s' 'v999' |
-        sib git hash-object -w --stdin
-)
-
-wrong_version_trace=$(
-    printf '100644 blob %s\t_SIBTRACE\n' "$wrong_version_blob" |
-        sib git mktree
-)
-
-expect_fail \
-    "ls-trace rejects an unsupported trace version" \
-    sib ls-trace "$wrong_version_trace"
-
-ordinary_tree=$(sib git mktree </dev/null)
-
-expect_fail \
-    "ls-trace rejects a tree without trace magic" \
-    sib ls-trace "$ordinary_tree"
-
 expect_fail \
     "ls-trace rejects a blob object" \
     sib ls-trace "$raw_blob"
@@ -857,21 +814,6 @@ expect_fail \
 expect_fail \
     "ls-trace-json requires exactly one argument" \
     sib ls-trace-json "$raw_trace" "$empty_trace"
-
-internal_blob=$(
-    printf '%s' 'internal metadata' |
-        sib git hash-object -w --stdin
-)
-
-internal_trace=$(
-    {
-        printf '100644 blob %s\t_SIBTRACE\n' "$magic_blob"
-        printf '100644 blob %s\t_SIBTRACE_future\n' "$internal_blob"
-    } | sib git mktree
-)
-
-assert_json_eq '{}' "$(sib ls-trace-json "$internal_trace")" \
-    "trace readers hide internal magic-prefixed entries"
 
 #
 # 12.5 chain construction and deterministic commits
@@ -918,18 +860,6 @@ assert_eq "$raw_trace" \
     "$(sib ls-chain "$deterministic_root_a" |
         awk '$1 == "trace" { print $2; exit }')" \
     "ls-chain exposes the commit trace"
-
-ordinary_commit=$(
-    sib git commit-tree "$ordinary_tree" </dev/null
-)
-
-expect_fail \
-    "chain-trace rejects a parent that is not a trace chain" \
-    sib chain-trace -p "$ordinary_commit" "$raw_trace"
-
-expect_fail \
-    "chain-trace rejects a trace without schema magic" \
-    sib chain-trace "$ordinary_tree"
 
 expect_fail \
     "chain-trace rejects a blob as a trace" \
@@ -994,18 +924,6 @@ expect_input_fail \
     "chain-jsonl rejects unexpected positional arguments" \
     '{"content":"value"}' \
     sib chain-jsonl unexpected
-
-expect_fail \
-    "rev-jsonl rejects a commit whose tree is not a trace" \
-    sib rev-jsonl "$ordinary_commit"
-
-wrong_version_commit=$(
-    sib git commit-tree "$wrong_version_trace" </dev/null
-)
-
-expect_fail \
-    "rev-jsonl rejects a chain with an unsupported trace version" \
-    sib rev-jsonl "$wrong_version_commit"
 
 expect_fail \
     "rev-jsonl rejects an invalid revision" \

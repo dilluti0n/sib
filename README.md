@@ -200,7 +200,6 @@ tracker](https://github.com/dilluti0n/sib/issues).
 
 ### Minimum rules for compatibility
 
-- Keys matching glob pattern `_SIBTRACE*` are reserved.
 - Keys must match `[A-Za-z_][A-Za-z0-9._-]*`.
 - The other keys don't matter except `content`.
 - The commit date is fixed at `999999999 +0000`, with author and

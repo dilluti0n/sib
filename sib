@@ -7,8 +7,6 @@ set -o pipefail
 : "${SIB_DIR:=$HOME/.sib}"
 export SIB_DIR
 
-readonly TRACE_MAGIC=_SIBTRACE
-readonly TRACE_VERSION=v1
 readonly DEFAULT_PLM_MODEL=gpt-5.6-luna
 readonly DEFAULT_PLM_ENDPOINT=https://api.openai.com/v1/responses
 readonly COMMIT_DATE='999999999 +0000'
@@ -46,13 +44,6 @@ EOF
     else
         echo "Reinitialized existing Sib store in $SIB_DIR" >&2
     fi
-}
-
-# hash and format blob (to mktree format)
-# $1: blob name
-hf_blob() {
-    [ -n "$1" ] || return 1;
-    printf '100644 blob %s\t%s\n' $(lgit hash-object -w --stdin) "$1"
 }
 
 key_is_valid() {
@@ -112,54 +103,33 @@ cmd_mktrace() {
 
         printf '%s\n' "$keys" | sort | uniq -d | grep -q . &&
             die 'duplicate key found in input'
-
-        while IFS= read -r key; do
-            case "$key" in
-                "$TRACE_MAGIC"*) die "reserved key prefix: $key" ;;
-            esac
-        done <<<"$keys"
     fi
 
-    {
-        echo -n $TRACE_VERSION | hf_blob $TRACE_MAGIC;
-
-        if [[ -n $lines ]]; then
-            while IFS=$'\t' read -r hash key; do
-                printf '100644 blob %s\t%s\n' "$hash" "$key"
-            done <<<"$lines"
-        fi
-    } | lgit mktree || die Invalid mktrace format
+    if [[ -n $lines ]]; then
+        while IFS=$'\t' read -r hash key; do
+            printf '100644 blob %s\t%s\n' "$hash" "$key"
+        done <<<"$lines"
+    fi | lgit mktree || die Invalid mktrace format
 }
 
 cmd_ls_trace() {
     [[ $# -eq 1 ]] || die 'usage: ls-trace <trace>'
 
-    local tmp keys magic version
+    local tmp keys
 
     tmp="$(lgit ls-tree "$1" 2>/dev/null)" || die "invalid object name $1"
     tmp=$(awk 'NF==4 { OFS="\t"; print $3, $4 }' <<<"$tmp")
 
     # Now $tmp is ls-trace format before screening
 
+    [[ -z $tmp ]] && return 0 # empty trace
+
     keys=$(tf_key <<<"$tmp") || die 'invalid trace format'
 
     printf '%s\n' "$keys" | sort | uniq -d | grep -q . &&
             die "duplicate key found in trace $1"
 
-    magic=$(awk -F"\t" -v k=$TRACE_MAGIC '$2 == k { print $1 }' <<<"$tmp")
-    [[ -z $magic ]] && die 'No magic found on trace'
-
-    # Here it is ensured $magic is valid hash from ls-tree and single
-    # line by upper dedup check
-    version=$(lgit cat-file blob $magic)
-    [[ $version != $TRACE_VERSION ]] && die "invalid trace version: $version"
-
-    # Here, every key starting with $TRACE_MAGIC will be considered as
-    # non-key and internal indicator. NF >= 2 is to not print \t for
-    # empty input
-    awk -F"\t" -v k=$TRACE_MAGIC -v OFS='\t' \
-        'NF >= 2 && index($2, k) != 1 { print $1, $2 }' <<<"$tmp" ||
-        true # return 0 for empty trace
+    printf '%s\n' "$tmp"
 }
 
 cmd_git() {
