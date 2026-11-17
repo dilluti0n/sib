@@ -153,7 +153,8 @@ cmd_mktrace_json() {
     local json="$(cat)" tr
 
     # Reject null/array/object/non-object
-    jq -e 'type == "object" and all(.[]; type == "string")' >/dev/null <<<"$json" \
+    jq -se 'length == 1 and (.[0] | type == "object" and all(.[]; type == "string"))' \
+        >/dev/null <<<"$json" \
         || die 'input must be a JSON object containing only string values'
 
     tr=$(jq -r 'keys_unsorted[]' <<<"$json" | while IFS= read -r key; do
