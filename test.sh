@@ -1268,6 +1268,11 @@ expect_input_fail \
     env PLM_MODEL=m PLM_USE_STREAM=false PLM_TOOLS="$TMPDIR_ROOT/bad-tools.json" \
     "$PLM_WRAP" -f plm -t request
 
+expect_input_fail \
+    "plm-wrap requires PLM_MODEL for request" \
+    '{"content":"q"}' \
+    env -u PLM_MODEL "$PLM_WRAP" -f plm -t request
+
 sib config set sib.tools "$tools_file"
 assert_contains "$(env -u PLM_TOOLS sib status)" "PLM_TOOLS:    $tools_file" \
     "sib.tools configuration sets PLM_TOOLS"

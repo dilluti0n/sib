@@ -13,30 +13,23 @@ die() {
 }
 
 usage() {
-    echo "Usage: $NAME [-hS] [-f <text|plm|response>] [-t <plm|text|request>] [-r <system|user|assistant|tool>] [-m MODEL]" >&2
+    echo "Usage: $NAME [-f <text|plm|response>] [-t <plm|text|request>]" >&2
 }
-
-PLM_MODEL="${PLM_MODEL:-gpt-4o-mini}"
-PLM_USE_STREAM="${PLM_USE_STREAM:-true}"
 
 source_format="text"
 dest_format="plm"
 
-while getopts hr:m:f:t:S o; do
+while getopts f:t: o; do
     case $o in
-        h) usage 2>&1; exit 0 ;;
-        r) PLM_ROLE="$OPTARG" ;;
-        m) PLM_MODEL="$OPTARG" ;;
         f) source_format="$OPTARG" ;;
         t) dest_format="$OPTARG" ;;
-        S) PLM_USE_STREAM='false' ;;
         *) usage; exit 1 ;;
     esac
 done
 shift $((OPTIND - 1))
 
 text_to_plm() {
-    jq -Rsc --arg role "${PLM_ROLE:-user}" '{type:"message", role:$role, content:.}'
+    jq -Rsc '{type:"message", role:"user", content:.}'
 }
 
 # One plm line per output item; see Documentation/KeyFormat.md
@@ -93,6 +86,7 @@ plm_to_text() {
 
 # Build request input from a per-type whitelist; see Documentation/KeyFormat.md
 plm_to_request() {
+    : "${PLM_MODEL:?PLM_MODEL is not set}"
     local tools='null'
 
     if [[ -n ${PLM_TOOLS:-} ]]; then
@@ -109,7 +103,7 @@ plm_to_request() {
        --argjson tools "$tools" \
        --arg tool_choice "${PLM_TOOL_CHOICE:-}" \
        --arg model "$PLM_MODEL" \
-       --argjson stream "$PLM_USE_STREAM" \
+       --argjson stream "${PLM_USE_STREAM:-true}" \
        --arg temp "${PLM_TEMP:-}" \
        --arg top_p "${PLM_TOP_P:-}" \
        --arg fpen "${PLM_FREQ_PENALTY:-}" \
