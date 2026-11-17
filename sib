@@ -184,10 +184,17 @@ cmd_chain_trace_json() {
     cmd_chain_trace "$@" "$tmp"
 }
 
+# chain-jsonl [-p <chain>]
 cmd_chain_jsonl() {
-    [[ $# -eq 0 ]] || die 'no argument is allowed'
-
     local line trace chain parent= n=0
+
+    if [[ $# -eq 2 && $1 == -p ]]; then
+        parent=$2
+        cmd_ls_trace "$parent" >/dev/null # check if parent is valid
+    elif [[ $# -ne 0 ]]; then
+        die 'usage: chain-jsonl [-p <chain>]'
+    fi
+
     while IFS= read -r line || [ -n "$line" ]; do
         [ -n "$line" ] || continue          # skip blank lines
         trace=$(printf '%s' "$line" | cmd_mktrace_json) \

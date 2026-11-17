@@ -935,6 +935,35 @@ expect_input_fail \
     '{"content":"value"}' \
     sib chain-jsonl unexpected
 
+jsonl_appended=$(
+    printf '%s\n' \
+        '{"role":"user","content":"three"}' \
+        '{"role":"assistant","content":"four"}' |
+        sib chain-jsonl -p "$jsonl_chain"
+)
+
+assert_eq "4" "$(commit_count "$jsonl_appended")" \
+    "chain-jsonl -p appends to an existing chain"
+
+assert_eq \
+    $'one\ntwo\nthree\nfour' \
+    "$(sib rev-jsonl "$jsonl_appended" | jq -r .content)" \
+    "chain-jsonl -p keeps parent turns first"
+
+assert_eq "$jsonl_chain" \
+    "$(parent_of "$(parent_of "$jsonl_appended")")" \
+    "chain-jsonl -p installs the exact requested parent"
+
+expect_input_fail \
+    "chain-jsonl rejects incomplete -p arguments" \
+    '{"content":"value"}' \
+    sib chain-jsonl -p
+
+expect_input_fail \
+    "chain-jsonl rejects an invalid parent" \
+    '{"content":"value"}' \
+    sib chain-jsonl -p revision-that-does-not-exist
+
 expect_fail \
     "rev-jsonl rejects an invalid revision" \
     sib rev-jsonl revision-that-does-not-exist

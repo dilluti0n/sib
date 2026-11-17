@@ -185,7 +185,7 @@ What makes this cheap is the plumbing underneath. A conversation is a
 map (`role`, `content`, `model`, ...) whose values are blobs.
 
     sib rev-jsonl <chain>         Print <chain> to jsonl format
-    sib chain-jsonl               Chain jsonl file to sib store and print its id
+    sib chain-jsonl [-p <chain>]  Chain jsonl file to sib store and print its id
 
     sib rev-parse / show-ref / update-ref / ls-refs / symbolic-ref
     sib git ...                   raw git on the store
