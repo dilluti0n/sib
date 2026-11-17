@@ -312,7 +312,11 @@ cmd_config() {
 
 cmd="$1"; shift
 
-if [[ $cmd != "init" ]]; then
+case $cmd in
+    -h|--help|help) usage; exit 0 ;;
+esac
+
+if [[ $cmd != init && $cmd != version ]]; then
     lgit rev-parse --resolve-git-dir "$SIB_DIR" &>/dev/null \
         || die "$SIB_DIR: not a sib storage: run \`sib init'"
 fi
@@ -323,7 +327,7 @@ script_dir="$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")"
 
 
 cmd_version() {
-    echo sib version $(cat $script_dir/VERSION)
+    echo "sib version $(cat -- "$script_dir/VERSION")"
 }
 
 export PATH="$script_dir:$PATH"
