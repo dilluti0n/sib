@@ -51,7 +51,7 @@ key_is_valid() {
 }
 
 tf_key() {
-    local line key hash extra n=0
+    local line key hash n=0
 
     while IFS= read -r line || [[ -n $line ]]; do
         n=$((n + 1))
