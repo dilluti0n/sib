@@ -94,6 +94,7 @@ cmd_chain_trace() {
     lgit commit-tree "${parent_args[@]}" $trace </dev/null
 }
 
+# shellcheck disable=SC2120 # invoked via cmd_* dispatch
 cmd_mktrace() {
     [[ $# -eq 0 ]] || die 'no argument is allowed'
     local lines line key hash keys
@@ -149,6 +150,7 @@ tf_blob() {
 }
 
 # Input: {"key": "value", "key": "value", ...}
+# shellcheck disable=SC2120 # invoked via cmd_* dispatch
 cmd_mktrace_json() {
     [[ $# -eq 0 ]] || die 'no argument is allowed'
 
