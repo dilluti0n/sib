@@ -30,8 +30,8 @@ cmd_init() {
     local reinit=
     [[ -f "$SIB_DIR/HEAD" ]] && reinit=true
 
-    mkdir -p "$SIB_DIR"
-    lgit init --bare --quiet
+    mkdir -p "$SIB_DIR" || die "cannot create $SIB_DIR"
+    lgit init --bare --quiet || die "cannot init $SIB_DIR"
 
     if [[ -z $reinit ]]; then
         echo 'ref: refs/conv/scratch' > "$SIB_DIR/HEAD"
@@ -79,7 +79,7 @@ cmd_chain_trace() {
     if [[ $# -eq 1 ]]; then
         trace="$1"
     elif [[ $# -eq 3 && "$1" == "-p" ]]; then
-        cmd_ls_trace $2 >/dev/null # check if parent is valid
+        cmd_ls_trace "$2" >/dev/null # check if parent is valid
         parent_args=(-p "$2")
         trace="$3"
     else
@@ -87,7 +87,7 @@ cmd_chain_trace() {
     fi
 
     # check if trace is valid
-    cmd_ls_trace $trace >/dev/null || die trace $trace is invalid
+    cmd_ls_trace "$trace" >/dev/null
 
     GIT_AUTHOR_DATE="$COMMIT_DATE" \
     GIT_COMMITTER_DATE="$COMMIT_DATE" \
@@ -168,7 +168,7 @@ cmd_ls_trace_json() {
     [[ $# -eq 1 ]] || die 'usage: ls-trace-json <trace>'
 
     local entries
-    entries=$(cmd_ls_trace "$1") || exit 1
+    entries=$(cmd_ls_trace "$1") || die
     [ -n "$entries" ] || { echo '{}'; return 0; }
     echo "$entries" | while IFS=$'\t' read -r hash key; do
         lgit cat-file blob "$hash" \
@@ -200,9 +200,9 @@ cmd_chain_jsonl() {
         trace=$(printf '%s' "$line" | cmd_mktrace_json) \
             || die "mktrace failed at line $((n+1))"
         if [ -z "$parent" ]; then
-            chain=$(cmd_chain_trace "$trace")
+            chain=$(cmd_chain_trace "$trace") || die
         else
-            chain=$(cmd_chain_trace -p "$parent" "$trace")
+            chain=$(cmd_chain_trace -p "$parent" "$trace") || die
         fi
         parent="$chain"
         n=$((n+1))
@@ -242,7 +242,7 @@ cmd_rev_jsonl() {
     while read -r commit; do
         local trace
         trace=$(trace_of_chain "$commit") || die "no trace for $commit"
-        cmd_ls_trace_json "$trace"
+        cmd_ls_trace_json "$trace" || die
     done <<< "$commits"
 }
 
