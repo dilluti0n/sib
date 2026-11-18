@@ -27,7 +27,7 @@ raw_response='{
 
 assert_eq \
     "$(jq -c . <<'EOF'
-{"type":"reasoning","id":"rs_1","content":"a\n\nb","encrypted_content":"ENC","sib:model":"m1"}
+{"type":"reasoning","content":"a\n\nb","encrypted_content":"ENC","sib:model":"m1"}
 {"type":"function_call","call_id":"call_1","name":"get_weather","content":"{\"city\":\"Seoul\"}","sib:model":"m1"}
 {"type":"message","role":"assistant","content":"x\n\ny","status":"incomplete","sib:model":"m1"}
 EOF
@@ -51,7 +51,7 @@ plm_chain='{"type":"message","role":"user","content":"q","sib:model":"m1"}
 assert_eq \
     "$(jq -c . <<'EOF'
 [{"type":"message","role":"user","content":"q"},
- {"type":"reasoning","id":"rs_1","summary":[{"type":"summary_text","text":"a"}],"encrypted_content":"ENC"},
+ {"type":"reasoning","summary":[{"type":"summary_text","text":"a"}],"encrypted_content":"ENC"},
  {"type":"reasoning","summary":[],"encrypted_content":"ENC2"},
  {"type":"function_call","call_id":"call_1","name":"f","arguments":"{}"},
  {"type":"function_call_output","call_id":"call_1","output":"out"}]
