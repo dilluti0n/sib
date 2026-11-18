@@ -11,16 +11,18 @@ die() {
 
 usage() {
     cat <<EOF
-usage: ${NAME} [-n <lines>] [<chain-ish>]
+usage: ${NAME} [-1] [-n <lines>] [<chain-ish>]
+  -1 Show only <chain-ish>, not its ancestors
   -n Truncate content to LINES
   -h Show this help
 EOF
 }
 
-n_lines=
+n_lines= limit=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -h) usage; exit 0 ;;
+        -1) limit=(--max-count=1); shift ;;
         -n) n_lines="${2:?$1 requires arg}"; shift 2 ;;
         -*) echo "unknown arg: $1" >&2; usage; exit 1 ;;
         *) break ;;
@@ -31,9 +33,9 @@ done
 target="${1:-HEAD}"
 tid=$(sib rev-parse "$target" 2>/dev/null) || die invalid chain-ish "$target"
 
-# Same layout as sib-show for each chain, separated by "---"
-sib rev-jsonl "$tid" | jq -n -r -j \
-    --rawfile ids <(sib rev-list "$tid") \
+# Each chain, separated by "---"
+sib rev-jsonl "${limit[@]}" "$tid" | jq -n -r -j \
+    --rawfile ids <(sib rev-list "${limit[@]}" "$tid") \
     --arg n "$n_lines" '
     def rstrip_nl: if endswith("\n") then .[:-1] | rstrip_nl else . end;
 
@@ -46,11 +48,11 @@ sib rev-jsonl "$tid" | jq -n -r -j \
         end;
 
     ($ids | split("\n")) as $ids
-    | foreach inputs as $trace (-1; . + 1; $ids[.] as $chain | $trace
-        | "chain \($chain)\n",
+    | foreach inputs as $trace (-1; . + 1; . as $i | $ids[$i] as $chain | $trace
+        | if $i > 0 then "\n---\n\n" else empty end,
+          "chain \($chain)\n",
           (to_entries[] | select(.key != "content")
               | "\(.key): \(.value | rstrip_nl)\n"),
           "\n",
-          if has("content") then (.content | head), "\n" else empty end,
-          "\n---\n\n")
+          if has("content") then (.content | head), "\n" else empty end)
 '

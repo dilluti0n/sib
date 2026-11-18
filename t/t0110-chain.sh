@@ -167,7 +167,7 @@ expect_fail \
     sib rev-jsonl revision-that-does-not-exist
 
 expect_fail \
-    "rev-jsonl requires exactly one argument" \
+    "rev-jsonl rejects an unknown extra argument" \
     sib rev-jsonl "$jsonl_with_blanks" unexpected
 
 log_chain=$(
@@ -179,10 +179,17 @@ log_chain=$(
         sib chain-jsonl
 )
 log_ids=($(sib git rev-list --reverse "$log_chain"))
-log_turn() {
-    printf 'chain %s\nrole: user\nx: m1\nm2\n\n%s\n\n\n---\n' "$1" "$2"
-}
-log_expected="$(log_turn "${log_ids[0]}" a)
+user_turn="role: user
+x: m1
+m2
+
+a"
+
+assert_eq "chain ${log_ids[0]}
+$user_turn
+
+
+---
 
 chain ${log_ids[1]}
 
@@ -195,10 +202,16 @@ role: only
 
 ---
 
-$(log_turn "${log_ids[3]}" a)"
-
-assert_eq "$log_expected" "$(sib log -n 1 "$log_chain")" \
+chain ${log_ids[3]}
+$user_turn" "$(sib log -n 1 "$log_chain")" \
     "log prints every chain, including shared and empty traces"
+
+assert_eq "chain ${log_ids[2]}
+role: only" "$(sib show -n 1 "${log_ids[2]}")" \
+    "show prints one chain in the log layout"
+
+assert_eq "$(sib show "$log_chain")" "$(sib log -1 "$log_chain")" \
+    "show is log -1"
 
 assert_contains "$(sib log "$log_chain")" $'a\nb\nc' \
     "log prints full content without -n"

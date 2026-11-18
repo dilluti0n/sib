@@ -234,7 +234,7 @@ cmd_rev_list() {
 }
 
 cmd_rev_jsonl() {
-    [[ $# -eq 1 ]] || die 'usage: rev-jsonl <chain-ish>'
+    [[ $# -ge 1 ]] || die 'usage: rev-jsonl [<rev-list-option>...] <chain-ish>'
 
     local empty
     empty=$(lgit hash-object -t tree /dev/null) || die
@@ -249,7 +249,7 @@ cmd_rev_jsonl() {
     #   cat-file   "<type> <size> <key>" header (key comes back as
     #              %(rest)), then the body and a newline
     #   jq         collects each chain's entries into one object
-    cmd_rev_list --no-commit-header --format="$empty %T" "$1" \
+    cmd_rev_list --no-commit-header --format="$empty %T" "$@" \
         | lgit diff-tree --stdin -r --no-commit-id \
         | awk -F'\t' -v e="$empty" '
             /^:/ { split($1, m, " "); print m[4], $2; next }
@@ -271,7 +271,7 @@ cmd_rev_jsonl() {
                       else del(.emit) | .trace[$h[2]] = $value end
                 end;
                 .emit // empty)' \
-        || die "rev-jsonl failed for $1"
+        || die "rev-jsonl failed for $*"
 }
 
 cmd_rev_parse() {
