@@ -43,12 +43,7 @@ truncate_content() {
 
 target="${1:-HEAD}"
 
-# On sib-log
-if [[ -n "${SIB_SHOW_RESOLVED:-}" ]]; then
-    chain="$target"
-else
-    chain=$(sib rev-parse "$target")
-fi
+chain=$(sib rev-parse "$target")
 
 if [[ ! -z $key ]]; then
     blob=$(sib ls-trace "$chain" \

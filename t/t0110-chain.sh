@@ -170,4 +170,40 @@ expect_fail \
     "rev-jsonl requires exactly one argument" \
     sib rev-jsonl "$jsonl_with_blanks" unexpected
 
+log_chain=$(
+    printf '%s\n' \
+        '{"role":"user","x":"m1\nm2\n\n","content":"a\nb\nc"}' \
+        '{}' \
+        '{"role":"only"}' \
+        '{"role":"user","x":"m1\nm2\n\n","content":"a\nb\nc"}' |
+        sib chain-jsonl
+)
+log_ids=($(sib git rev-list --reverse "$log_chain"))
+log_turn() {
+    printf 'chain %s\nrole: user\nx: m1\nm2\n\n%s\n\n\n---\n' "$1" "$2"
+}
+log_expected="$(log_turn "${log_ids[0]}" a)
+
+chain ${log_ids[1]}
+
+
+---
+
+chain ${log_ids[2]}
+role: only
+
+
+---
+
+$(log_turn "${log_ids[3]}" a)"
+
+assert_eq "$log_expected" "$(sib log -n 1 "$log_chain")" \
+    "log prints every chain, including shared and empty traces"
+
+assert_contains "$(sib log "$log_chain")" $'a\nb\nc' \
+    "log prints full content without -n"
+
+assert_eq "" "$(sib log "$log_chain" 2>&1 >/dev/null)" \
+    "log keeps stderr quiet on empty trace and missing content"
+
 test_done

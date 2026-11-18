@@ -31,12 +31,26 @@ done
 target="${1:-HEAD}"
 tid=$(sib rev-parse "$target" 2>/dev/null) || die invalid chain-ish "$target"
 
-show_args=()
-[[ -n $n_lines ]] && show_args=(-n "$n_lines")
+# Same layout as sib-show for each chain, separated by "---"
+sib rev-jsonl "$tid" | jq -n -r -j \
+    --rawfile ids <(sib rev-list "$tid") \
+    --arg n "$n_lines" '
+    def rstrip_nl: if endswith("\n") then .[:-1] | rstrip_nl else . end;
 
-sib rev-list "$tid" | while read -r chain; do
-    SIB_SHOW_RESOLVED=1 sib-show "${show_args[@]}" "$chain"
-    echo
-    echo ---
-    echo
-done
+    # head -n $n
+    def head:
+        if $n == "" then .
+        else split("\n") as $lines
+            | if ($n | tonumber) >= ($lines | length) then .
+              else $lines[:($n | tonumber)] | map(. + "\n") | add // "" end
+        end;
+
+    ($ids | split("\n")) as $ids
+    | foreach inputs as $trace (-1; . + 1; $ids[.] as $chain | $trace
+        | "chain \($chain)\n",
+          (to_entries[] | select(.key != "content")
+              | "\(.key): \(.value | rstrip_nl)\n"),
+          "\n",
+          if has("content") then (.content | head), "\n" else empty end,
+          "\n---\n\n")
+'
