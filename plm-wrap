@@ -67,9 +67,13 @@ src_to_plm() {
 # Build request input from a per-type whitelist; see Documentation/KeyFormat.md
 plm_to_request() {
     : "${PLM_MODEL:?PLM_MODEL is not set}"
-    local tools='null'
+    local tools='null' input
+
+    # Drain stdin first so a bad PLM_TOOLS does not break the pipe upstream
+    input=$(cat)
 
     if [[ -n ${PLM_TOOLS:-} ]]; then
+        [[ -f $PLM_TOOLS && -r $PLM_TOOLS ]] || die "$PLM_TOOLS: cannot read tools"
         tools=$(jq -c . -- "$PLM_TOOLS") || die "$PLM_TOOLS: cannot read tools"
         jq -e 'type == "array"' >/dev/null <<<"$tools" ||
             die "$PLM_TOOLS: tools must be a JSON array"
@@ -118,7 +122,8 @@ plm_to_request() {
         | if $temp  != "" then .temperature       = ($temp  | tonumber) else . end
         | if $top_p != "" then .top_p             = ($top_p | tonumber) else . end
         | if $fpen  != "" then .frequency_penalty = ($fpen  | tonumber) else . end
-        | if $ppen  != "" then .presence_penalty  = ($ppen  | tonumber) else . end'
+        | if $ppen  != "" then .presence_penalty  = ($ppen  | tonumber) else . end' \
+       <<<"$input"
 }
 
 plm_to_dest() {

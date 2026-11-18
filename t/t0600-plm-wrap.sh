@@ -113,6 +113,11 @@ expect_input_fail \
     env PLM_MODEL=m PLM_USE_STREAM=false PLM_TOOLS="$TMPDIR_ROOT/bad-tools.json" \
     "$PLM_WRAP" -f plm -t request
 
+err=$({ yes '{"content":"q"}' | head -n 100000 |
+        PLM_MODEL=m PLM_TOOLS="$TMPDIR_ROOT" "$PLM_WRAP" -f plm -t request >/dev/null; } 2>&1) || :
+assert_eq "err: $TMPDIR_ROOT: cannot read tools" "$err" \
+    "plm-wrap reports an unreadable PLM_TOOLS in one line"
+
 expect_input_fail \
     "plm-wrap requires PLM_MODEL for request" \
     '{"content":"q"}' \
