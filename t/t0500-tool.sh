@@ -111,9 +111,12 @@ assert_eq "ok" \
     "contrib bash tool runs the command"
 
 status=0
-printf 'use a tool' | MOCK_FUNCTION_CALL_ONCE="$TMPDIR_ROOT/fc-once" sib ask -n >/dev/null 2>&1 ||
+ask_out=$(printf 'use a tool' | MOCK_FUNCTION_CALL_ONCE="$TMPDIR_ROOT/fc-once" sib ask -n 2>/dev/null) ||
     status=$?
 assert_eq "0" "$status" "sib ask runs the tool and asks again"
+
+assert_contains "$ask_out" "function_call_output: got:{}err" \
+    "sib ask shows the tool output"
 
 assert_eq $'message\nfunction_call\nfunction_call_output\nmessage' \
     "$(sib rev-jsonl HEAD | jq -r .type)" \

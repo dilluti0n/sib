@@ -114,6 +114,11 @@ while :; do
     # if they cannot run, leave HEAD on the call for the caller.
     out=$(sib tool pending "$new" | sib tool run) || exit 10
 
+    # Show each output squeezed to one line, like plm-send does for calls
+    jq -r '(.content // "" | gsub("\\s+"; " ") | ltrimstr(" ") | rtrimstr(" ")) as $l
+           | "function_call_output: " + $l[:80]
+             + (if ($l | length) > 80 then "..." else "" end)' <<<"$out"
+
     # A tool may have moved HEAD (e.g. sib edit); continue from there
     new=$(sib rev-parse HEAD)
     parent=$(sib chain-jsonl -p "$new" <<<"$out") || exit 10
