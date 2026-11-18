@@ -57,7 +57,7 @@ Check defaults:
 
     $ sib status
     SIB_DIR:      /home/hskim/.sib
-    PLM_MODEL:    gpt-5.6-luna
+    PLM_MODEL:    gpt-6-luna
     PLM_ENDPOINT: https://api.openai.com/v1/responses
 
     HEAD: (unborn)
