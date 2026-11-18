@@ -16,7 +16,8 @@ open it.
 
 ## Sending patches
 
-Dependencies are bash >= 3.2, git, jq, curl, awk and coreutils.
+Dependencies are bash >= 3.2, git >= 2.33, jq >= 1.6, curl, awk and
+coreutils.
 
 Pull requests at <https://github.com/sib-project/sib>, or `git
 format-patch` mailed to <sib-project@dilluti0n.com>. Both are read.

@@ -29,8 +29,8 @@ This is the overall concept. But [why?](./Documentation/Tutorial.md)
 
 Here lies the unavoidable boilerplate you must endure to use Sib.
 
-Dependencies are bash >= 3.2, git, [jq](https://jqlang.org/), curl,
-awk and coreutils.
+Dependencies are bash >= 3.2, git >= 2.33, [jq](https://jqlang.org/)
+>= 1.6, curl, awk and coreutils.
 
 Download [release
 tarball](https://github.com/dilluti0n/sib/releases/latest) or clone
