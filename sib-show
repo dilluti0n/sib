@@ -13,19 +13,17 @@ die() {
 
 usage() {
     cat <<EOF
-usage: ${NAME} [-ch] [-k <key>] [-n <lines>] [<chain-ish>]
-  -n <lines>  Truncate content to <lines>
+usage: ${NAME} [-ch] [-k <key>] [<chain-ish>]
   -k <key>    Only show <key>'s value on <chain-ish>
   -c          Same as \`-k content'
   -h          Show this help
 EOF
 }
 
-n_lines= key=
-while getopts hn:k:c o; do
+key=
+while getopts hk:c o; do
     case $o in
         h) usage; exit 0 ;;
-        n) n_lines="$OPTARG" ;;
         k) key="$OPTARG" ;;
         c) key=content   ;;
         *) usage; exit 1 ;;
@@ -45,4 +43,4 @@ if [[ ! -z $key ]]; then
     exit 0
 fi
 
-exec sib-log -1 ${n_lines:+-n "$n_lines"} "$chain"
+exec sib-log -1 "$chain"

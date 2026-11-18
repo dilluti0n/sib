@@ -183,11 +183,12 @@ user_turn="role: user
 x: m1
 m2
 
-a"
+a
+b
+c"
 
 assert_eq "chain ${log_ids[0]}
 $user_turn
-
 
 ---
 
@@ -203,18 +204,15 @@ role: only
 ---
 
 chain ${log_ids[3]}
-$user_turn" "$(sib log -n 1 "$log_chain")" \
+$user_turn" "$(sib log "$log_chain")" \
     "log prints every chain, including shared and empty traces"
 
 assert_eq "chain ${log_ids[2]}
-role: only" "$(sib show -n 1 "${log_ids[2]}")" \
+role: only" "$(sib show "${log_ids[2]}")" \
     "show prints one chain in the log layout"
 
 assert_eq "$(sib show "$log_chain")" "$(sib log -1 "$log_chain")" \
     "show is log -1"
-
-assert_contains "$(sib log "$log_chain")" $'a\nb\nc' \
-    "log prints full content without -n"
 
 assert_eq "" "$(sib log "$log_chain" 2>&1 >/dev/null)" \
     "log keeps stderr quiet on empty trace and missing content"
