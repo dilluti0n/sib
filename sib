@@ -229,14 +229,6 @@ cmd_ls_chain() {
     '
 }
 
-tf_value() {
-    cut -d' ' -f2
-}
-
-trace_of_chain() {
-    cmd_ls_chain "$1" | grep '^trace ' | tf_value
-}
-
 cmd_rev_list() {
     lgit rev-list --reverse "$@"
 }
@@ -244,13 +236,42 @@ cmd_rev_list() {
 cmd_rev_jsonl() {
     [[ $# -eq 1 ]] || die 'usage: rev-jsonl <chain-ish>'
 
-    local commits
-    commits=$(cmd_rev_list "$1") || die "rev-list failed for $1"
-    while read -r commit; do
-        local trace
-        trace=$(trace_of_chain "$commit") || die "no trace for $commit"
-        cmd_ls_trace_json "$trace" || die
-    done <<< "$commits"
+    local empty
+    empty=$(lgit hash-object -t tree /dev/null) || die
+
+    # One git process per stage, not per chain:
+    #
+    #   rev-list   "<empty> <trace>" for each chain, root first
+    #   diff-tree  prints that line, then ":... <blob> A<TAB><key>"
+    #              for every entry of the trace
+    #   awk        turns it into cat-file requests: the empty tree marks
+    #              a new chain, "<blob> <key>" an entry
+    #   cat-file   "<type> <size> <key>" header (key comes back as
+    #              %(rest)), then the body and a newline
+    #   jq         collects each chain's entries into one object
+    cmd_rev_list --no-commit-header --format="$empty %T" "$1" \
+        | lgit diff-tree --stdin -r --no-commit-id \
+        | awk -F'\t' -v e="$empty" '
+            /^:/ { split($1, m, " "); print m[4], $2; next }
+            { print e }' \
+        | lgit cat-file --batch='%(objecttype) %(objectsize) %(rest)' \
+        | jq -R -n -c '
+            # Body is <size> bytes followed by a newline
+            def body($size):
+                def more:
+                    if utf8bytelength > $size then .[:-1]
+                    else . + input + "\n" | more end;
+                "" | more;
+
+            foreach ((inputs | split(" ")), null) as $h ({};
+                if $h == null then {emit: .trace}
+                else
+                    body($h[1] | tonumber) as $value
+                    | if $h[0] == "tree" then {emit: .trace, trace: {}}
+                      else del(.emit) | .trace[$h[2]] = $value end
+                end;
+                .emit // empty)' \
+        || die "rev-jsonl failed for $1"
 }
 
 cmd_rev_parse() {
