@@ -103,17 +103,18 @@ while :; do
         [[ -z "${SIB_DEBUG:-}" ]] || echo "sib-ask: res: $res" >&2
     } 3>&1
 
-    new=$(plm-wrap -f response -t plm <<<"$res" | sib chain-jsonl -p "$parent") ||
-        die something wrong
+    items=$(plm-wrap -f response -t plm <<<"$res") || die 'fail to read response'
+    new=$(sib chain-jsonl -p "$parent" <<<"$items") || die something wrong
     [[ -n $new ]] || die "sib chain-jsonl -p $parent gives empty output"
 
     sib update-ref -m "ask: ${reflog:-$new}" ${noderef:+"$noderef"} HEAD "$new"
 
     [[ $(sib ls-trace-json "$new" | jq -r '.type // empty') == function_call ]] || break
 
-    # The model is waiting for tool output. Run the tools and ask again;
-    # if they cannot run, leave HEAD on the call for the caller.
-    out=$(sib tool pending "$new" | sib tool run) || exit 10
+    # The model is waiting for tool output. Run the calls of this
+    # response only, not old ones left in a (possibly fetched) chain,
+    # and ask again; if they cannot run, leave HEAD on the call.
+    out=$(jq -c 'select(.type == "function_call")' <<<"$items" | sib tool run) || exit 10
 
     # Show each output squeezed to one line, like plm-send does for calls
     jq -r '(.content // "" | gsub("\\s+"; " ") | ltrimstr(" ") | rtrimstr(" ")) as $l

@@ -125,6 +125,13 @@ assert_eq $'message\nfunction_call\nfunction_call_output\nmessage' \
 assert_eq "got:{}err" "$(sib rev-jsonl HEAD | jq -rs '.[2].content')" \
     "sib ask stores the tool output"
 
+printf '%s\n' '{"type":"function_call","call_id":"call_old","name":"echo_args","content":"{}"}' |
+    sib ask -n -j -c >/dev/null
+printf 'go' | MOCK_FUNCTION_CALL_ONCE="$TMPDIR_ROOT/fc-old" sib ask >/dev/null 2>&1
+assert_eq "call_once" \
+    "$(sib rev-jsonl HEAD | jq -r 'select(.type == "function_call_output") | .call_id')" \
+    "sib ask runs only the calls of the latest response"
+
 #
 # contrib sib tool
 #
