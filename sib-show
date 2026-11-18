@@ -13,19 +13,17 @@ die() {
 
 usage() {
     cat <<EOF
-usage: ${NAME} [-ch] [-k <key>] [-n <lines>] [<chain-ish>]
-  -n <lines>  Truncate content to <lines>
+usage: ${NAME} [-ch] [-k <key>] [<chain-ish>]
   -k <key>    Only show <key>'s value on <chain-ish>
   -c          Same as \`-k content'
   -h          Show this help
 EOF
 }
 
-n_lines= key=
-while getopts hn:k:c o; do
+key=
+while getopts hk:c o; do
     case $o in
         h) usage; exit 0 ;;
-        n) n_lines="$OPTARG" ;;
         k) key="$OPTARG" ;;
         c) key=content   ;;
         *) usage; exit 1 ;;
@@ -33,22 +31,9 @@ while getopts hn:k:c o; do
 done
 shift $((OPTIND - 1))
 
-truncate_content() {
-    if [[ -n $n_lines ]]; then
-        head -n "$n_lines"
-    else
-        cat
-    fi
-}
-
 target="${1:-HEAD}"
 
-# On sib-log
-if [[ -n "${SIB_SHOW_RESOLVED:-}" ]]; then
-    chain="$target"
-else
-    chain=$(sib rev-parse "$target")
-fi
+chain=$(sib rev-parse "$target")
 
 if [[ ! -z $key ]]; then
     blob=$(sib ls-trace "$chain" \
@@ -58,28 +43,4 @@ if [[ ! -z $key ]]; then
     exit 0
 fi
 
-# Normal output
-echo "chain $chain"
-
-CONTENT=content
-
-lst="$(sib ls-trace "$chain")"
-[[ -z $lst ]] && { echo --- Empty trace --- >&2; echo; exit 0; }
-
-# Traverse all key except $CONTENT
-echo "$lst" \
-    | awk -F'\t' -v k="$CONTENT" '$2 != k { print }' \
-    | while IFS=$'\t' read -r value key; do
-
-    # Should not die here
-    [[ -z $value ]] && die "malformed ls-tree format $lst"
-
-    value=$(sib git cat-file blob "$value")
-    echo "$key: $value"
-done
-
-echo
-content=$(echo "$lst" | awk -F'\t' -v k="$CONTENT" '$2 == k { print $1 }')
-[[ -z $content ]] && { echo No $CONTENT field on "$chain" >&2; exit 0; }
-sib git cat-file blob "$content" | truncate_content
-echo
+exec sib-log -1 "$chain"
