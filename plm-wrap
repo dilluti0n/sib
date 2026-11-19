@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Available formats: plm/text(only for src)/request(only for dest)/response(only for src)
 #
-# plm: one item per line; see Documentation/KeyFormat.md
+# plm: one item per line; see Documentation/KeyFormat.rst
 
 set -euo pipefail
 
@@ -32,7 +32,7 @@ text_to_plm() {
     jq -Rsc '{type:"message", role:"user", content:.}'
 }
 
-# One plm line per output item; see Documentation/KeyFormat.md
+# One plm line per output item; see Documentation/KeyFormat.rst
 response_to_plm() {
     jq -c '
       .model as $model
@@ -64,7 +64,7 @@ src_to_plm() {
     esac
 }
 
-# Build request input from a per-type whitelist; see Documentation/KeyFormat.md
+# Build request input from a per-type whitelist; see Documentation/KeyFormat.rst
 plm_to_request() {
     : "${PLM_MODEL:?PLM_MODEL is not set}"
     local tools='null' input

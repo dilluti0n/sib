@@ -18,9 +18,9 @@ Now, the store looks like this:
     * 1c2e90 HEAD~1 {"role":"user", "content":"Which of those two reasons matters ..."}
     * 280f09 HEAD   {"role":"assistant", "content":"The **intentional creative ..."}
 
-This is the overall concept. But [why?](./Documentation/Tutorial.md)
+This is the overall concept. But [why?](./Documentation/Tutorial.rst)
 
-- [tutorial](./Documentation/Tutorial.md)
+- [tutorial](./Documentation/Tutorial.rst)
 - [Quickstart](#quickstart)
 - [Tips](#tips)
 - [Hacking](#hacking)
@@ -191,7 +191,7 @@ And run with
 What makes this cheap is the plumbing underneath. A conversation is a
 *chain* of commits. Each commit's tree is a *trace*, a flat key-value
 map (`type`, `role`, `content`, ...) whose values are blobs. See
-[reserved keys](./Documentation/KeyFormat.md).
+[reserved keys](./Documentation/KeyFormat.rst).
 
     sib rev-jsonl <chain>         Print <chain> to jsonl format
     sib chain-jsonl [-p <chain>]  Chain jsonl file to sib store and print its id
@@ -211,7 +211,7 @@ tracker](https://github.com/dilluti0n/sib/issues).
 
 - Keys must match `[A-Za-z_][A-Za-z0-9._:-]*`.
 - `type` defaults to `message`; the other [reserved
-  keys](./Documentation/KeyFormat.md) depend on it.
+  keys](./Documentation/KeyFormat.rst) depend on it.
 - The commit date is fixed at `999999999 +0000`, with author and
   committer `Sibyl <sib@local>`. Through this, we can obtain the same
   hash for the same conversation chain.
