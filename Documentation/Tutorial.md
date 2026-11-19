@@ -49,7 +49,7 @@ The saved name can be addressed with `-p` (and other commands like
 `sib log` ...):
 
     sib log eva-3.0-go-off
-	echo '...' | sib ask -p eva-3.0-go-off
+    echo '...' | sib ask -p eva-3.0-go-off
 
 Each save stays in place by default and does not follow the `sib
 ask`. If you like the reply as well, save it one more time.
@@ -59,8 +59,8 @@ ask`. If you like the reply as well, save it one more time.
 Sometimes you want opposite of `-r` -- just add input to chain, not do
 LLM API call.
 
-	curl 'https://en.wikipedia.org/w/rest.php/v1/page/Evangelion:_3.0_You_Can_(Not)_Redo/html' |
-	    sib ask -c
+    curl 'https://en.wikipedia.org/w/rest.php/v1/page/Evangelion:_3.0_You_Can_(Not)_Redo/html' |
+        sib ask -c
 
 `-c` is for that. Add enough content, and use `-r` at the end to
 receive the response at the end.
@@ -73,7 +73,7 @@ does not do anything, but with `-p`,
 takes you back to saved `eva-3.0-go-off` chain. This is same behavior
 with `sib switch eva-3.0-go-off` -- than why `switch` exists?
 
-	sib switch -f eva-3.0-go-off
+    sib switch -f eva-3.0-go-off
 
 makes `eva-3.0-go-off` save follows the `HEAD`. i.e. next `sib ask`
 will move `eva-3.0-go-off` along with. You can always go back to
@@ -82,7 +82,7 @@ non-following state simply calling `sib switch HEAD` once.
 You might get confused whether the current state is following or
 not. For that reason,
 
-	sib status
+    sib status
 
 prints the status information.
 
