@@ -169,7 +169,7 @@ status=0
 printf 'call a tool' | MOCK_FUNCTION_CALL=1 sib ask -n >/dev/null 2>&1 || status=$?
 assert_eq "10" "$status" "sib ask exits 10 when the function_call has no tool"
 
-assert_eq "function_call" "$(sib show -k type HEAD)" \
+assert_eq "function_call" "$(sib show HEAD:type)" \
     "sib ask still commits the function_call before exiting 10"
 
 status=0

@@ -32,7 +32,7 @@ sib tool pending |
     jq -c '{type: "function_call_output", call_id, content: "result"}' |
     sib ask -j -c >/dev/null
 
-assert_eq "function_call_output" "$(sib show -k type HEAD)" \
+assert_eq "function_call_output" "$(sib show HEAD:type)" \
     "sib ask -j -c chains plm jsonl input as is"
 
 assert_eq "$fc_head" "$(parent_of "$(sib rev-parse HEAD)")" \
@@ -139,7 +139,7 @@ assert_eq "call_once" \
 cp "$SOURCE_DIR/contrib/tools/sib" "$SIB_DIR/tools/sib"
 
 assert_eq "message" \
-    "$(printf '%s' '{"args":["show","-k","type","HEAD"]}' | "$SIB_DIR/tools/sib")" \
+    "$(printf '%s' '{"args":["show","HEAD:type"]}' | "$SIB_DIR/tools/sib")" \
     "contrib sib tool passes args to sib"
 
 assert_eq "sib ask is not allowed from this tool" \

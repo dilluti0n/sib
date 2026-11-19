@@ -33,10 +33,10 @@ they combine.
 For example::
 
     echo 'Summarize the entire context for use in the next conversation.' | sib ask
-    sib show -k content | sib ask -nc
+    sib show HEAD:content | sib ask -nc
 
-``sib show -k content`` prints only ``content`` field of ``HEAD``, which
-is the summary just generated. ``-n`` ignores the existing ``HEAD``,
+``sib show HEAD:content`` prints only ``content`` field of ``HEAD``,
+which is the summary just generated. ``-n`` ignores the existing ``HEAD``,
 creates a new chain and switch to it. ``-c`` chains only user turns
 without querying the model.
 
@@ -75,7 +75,7 @@ the following commands::
     sib git fetch https://github.com/sib-project/hub \
         dilluti0n/nvim-sib-log-res:refs/conv/nvim-sib-log
 
-    sib show -k content nvim-sib-log >> ~/.config/nvim/init.lua
+    sib show nvim-sib-log:content >> ~/.config/nvim/init.lua
     nvim +SibLog
 
 Also, I checked it does the things, but I don't really know much about

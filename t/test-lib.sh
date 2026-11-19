@@ -123,7 +123,7 @@ field() {
     local key=$1
     local chain=${2:-HEAD}
 
-    sib show -k "$key" "$chain"
+    sib show "$chain:$key"
 }
 
 parent_of() {

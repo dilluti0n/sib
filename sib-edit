@@ -30,14 +30,11 @@ EB=content
 TRACE=trace
 NTRACE=ntrace
 
-# FIXME: exit on awk just in case
-sib ls-trace "$chain" \
-    | tee $TRACE \
-    | awk -F'\t' '$2=="content"{print $1; exit}' \
-    | tee oldblob \
-    | xargs -r sib git cat-file blob > $EB
-[[ ${PIPESTATUS[0]} -eq 0 ]] || die wrong "$chain" from "$chain_ish"
+sib ls-trace "$chain" > $TRACE || die wrong "$chain" from "$chain_ish"
 [[ -s $TRACE ]] || die empty trace
+awk -F'\t' '$2=="content"{print $1}' $TRACE > oldblob
+[[ -s oldblob ]] || die "no content on $chain_ish"
+sib show "$chain:content" > $EB || die
 
 editor=${EDITOR:-nano}
 # shellcheck disable=SC2086 # EDITOR may carry arguments
