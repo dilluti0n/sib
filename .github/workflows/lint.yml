@@ -13,3 +13,13 @@ jobs:
       - uses: actions/checkout@v7
 
       - run: shellcheck --version && make lint
+
+  rst:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install docutils
+        run: sudo apt-get update && sudo apt-get install -y python3-docutils
+
+      - run: make lint-doc

@@ -8,6 +8,7 @@ PN = sib-${VERSION}
 LINT = $(shell awk 'FNR == 1 && /^\043!.*[\/ ](ba)?sh$$/ { print FILENAME }' \
 	$(SIB) $(PLM) contrib/tools/*)
 T = $(sort $(wildcard t/t[0-9]*.sh))
+RST = $(wildcard Documentation/*.rst)
 MAN = $(patsubst %.rst,%,$(wildcard Documentation/*.[1-9].rst))
 
 tarball: doc
@@ -21,6 +22,10 @@ doc: ${MAN}
 
 lint:
 	shellcheck -S info ${LINT}
+
+lint-doc:
+	@for f in ${RST}; do echo "rst2html --strict $$f"; \
+		rst2html --strict "$$f" >/dev/null || exit 1; done
 
 test: ${T}
 
@@ -49,4 +54,4 @@ uninstall:
 		rm -f -- "${DESTDIR}${MANDIR}/man$${m##*.}/$${m##*/}"; \
 	done
 
-.PHONY: install uninstall tarball doc clean lint test ${T}
+.PHONY: install uninstall tarball doc clean lint lint-doc test ${T}
