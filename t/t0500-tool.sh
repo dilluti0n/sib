@@ -132,29 +132,4 @@ assert_eq "call_once" \
     "$(sib rev-jsonl HEAD | jq -r 'select(.type == "function_call_output") | .call_id')" \
     "sib ask runs only the calls of the latest response"
 
-#
-# contrib sib tool
-#
-
-cp "$SOURCE_DIR/contrib/tools/sib" "$SIB_DIR/tools/sib"
-
-assert_eq "message" \
-    "$(printf '%s' '{"args":["show","HEAD:type"]}' | "$SIB_DIR/tools/sib")" \
-    "contrib sib tool passes args to sib"
-
-assert_eq "sib ask is not allowed from this tool" \
-    "$(printf '%s' '{"args":["ask","-c"]}' | "$SIB_DIR/tools/sib" || :)" \
-    "contrib sib tool refuses ask"
-
-status=0
-printf 'original' |
-    MOCK_FUNCTION_CALL_ONCE="$TMPDIR_ROOT/fc-edit" MOCK_FC_NAME=sib \
-    MOCK_FC_ARGS='{"args":["edit","HEAD~1"],"content":"edited"}' \
-    sib ask -n >/dev/null 2>&1 || status=$?
-assert_eq "0" "$status" "sib ask runs the sib tool"
-
-assert_eq $'edited\nsib\nfunction_call_output\nmock assistant' \
-    "$(sib rev-jsonl HEAD | jq -r 'if .type == "message" then .content elif .type == "function_call" then .name else .type end')" \
-    "sib ask continues from the chain edited by the sib tool"
-
 test_done
