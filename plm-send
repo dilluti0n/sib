@@ -9,10 +9,21 @@ set -o pipefail
 # one line per function call
 fc_line='"function_call: \(.name)(\(.arguments))"'
 
+# PLM_HEADER_CMD prints the auth headers, in place of PLM_API_KEY.
+# Run it before curl so a failure stops the request.
+if [[ -n ${PLM_HEADER_CMD:-} ]]; then
+    auth=$(sh -c "$PLM_HEADER_CMD") || {
+        echo "header command failed: $PLM_HEADER_CMD" >&2
+        exit 1
+    }
+elif [[ -n ${PLM_API_KEY:-} ]]; then
+    auth="Authorization: Bearer $PLM_API_KEY"
+fi
+
 # Read headers from a file so the key does not show up in argv (ps, /proc)
 headers() {
     echo 'Content-Type: application/json'
-    [[ -z ${PLM_API_KEY:-} ]] || printf 'Authorization: Bearer %s\n' "$PLM_API_KEY"
+    [[ -z ${auth:-} ]] || printf '%s\n' "$auth"
 }
 
 curl -sS -N -i "$PLM_ENDPOINT" -H @<(headers) \

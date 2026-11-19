@@ -88,6 +88,17 @@ assert_contains "$(sib status)" \
     $'Vendor:   cyberdyne\nEndpoint: https://cyberdyne.example.invalid/v1\nModel:    skynet' \
     "status shows the vendor, its endpoint and model"
 
+sib config set vendor.cyberdyne.headerCmd 'pass show cyberdyne'
+
+cat >"$RUNTIME/sib-header-probe" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$PLM_HEADER_CMD"
+EOF
+chmod +x "$RUNTIME/sib-header-probe"
+
+assert_eq 'pass show cyberdyne' "$(sib header-probe)" \
+    "sib.vendor exports its headerCmd as PLM_HEADER_CMD"
+
 sib config unset vendor.cyberdyne.model
 
 assert_contains "$(sib core-probe)" 'model=configured-core-model' \

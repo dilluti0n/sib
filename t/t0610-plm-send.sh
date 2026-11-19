@@ -10,6 +10,12 @@ FAKE_BIN="$TMPDIR_ROOT/fake-bin"
 mkdir -p "$FAKE_BIN"
 cat >"$FAKE_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
+if [[ -n ${FAKE_CURL_LOG:-} ]]; then
+    printf 'argv: %s\n' "$*" >"$FAKE_CURL_LOG"
+    for arg; do
+        [[ $arg != @/* ]] || sed 's/^/header: /' "${arg#@}" >>"$FAKE_CURL_LOG"
+    done
+fi
 cat >/dev/null
 cat "$FAKE_CURL_RESPONSE"
 EOF
@@ -108,5 +114,37 @@ expect_fail "plm-send fails when the stream ends early" \
 assert_eq $'thinking\n\nhi\nfunction_call: get_weather({"city":"Seoul"})' \
     "$(plm_send_display "$TMPDIR_ROOT/json.http")" \
     "plm-send shows function calls in a JSON response"
+
+#
+# Auth headers
+#
+
+curl_log() {
+    FAKE_CURL_LOG="$TMPDIR_ROOT/curl.log" plm_send "$TMPDIR_ROOT/json.http" >/dev/null || :
+    cat "$TMPDIR_ROOT/curl.log"
+}
+
+log=$(PLM_API_KEY=sk-secret curl_log)
+assert_contains "$log" 'header: Authorization: Bearer sk-secret' \
+    "PLM_API_KEY is sent as a bearer token"
+[[ $(grep '^argv:' <<<"$log") != *sk-secret* ]] ||
+    fail "the API key is not in the curl argv"
+pass "the API key is not in the curl argv"
+
+log=$(PLM_API_KEY=sk-secret PLM_HEADER_CMD='printf "X-Api-Key: k\nX-Beta: b\n"' curl_log)
+assert_contains "$log" $'header: X-Api-Key: k\nheader: X-Beta: b' \
+    "PLM_HEADER_CMD prints the auth headers"
+[[ $log != *sk-secret* ]] ||
+    fail "PLM_HEADER_CMD replaces PLM_API_KEY"
+pass "PLM_HEADER_CMD replaces PLM_API_KEY"
+
+rm -f "$TMPDIR_ROOT/curl.log"
+! PLM_HEADER_CMD=false FAKE_CURL_LOG="$TMPDIR_ROOT/curl.log" \
+    plm_send "$TMPDIR_ROOT/json.http" >/dev/null 2>&1 ||
+    fail "plm-send fails when the header command fails"
+pass "plm-send fails when the header command fails"
+[[ ! -e $TMPDIR_ROOT/curl.log ]] ||
+    fail "no request is sent when the header command fails"
+pass "no request is sent when the header command fails"
 
 test_done

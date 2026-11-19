@@ -75,6 +75,11 @@ Export the API key (Add it to ~/.bashrc to make it persist):
 
     export PLM_API_KEY='sk-xxxxxx'
 
+Or let the vendor print its auth headers, run on each request:
+
+    sib config set vendor.cyberdyne.headerCmd \
+        'printf "Authorization: Bearer %s\n" "$(pass show cyberdyne)"'
+
 Ask something:
 
     echo 'Why did Evangelion end like that?' | sib ask

@@ -376,6 +376,7 @@ vendor=$(cmd_config get sib.vendor 2>/dev/null)
 if [[ -n $vendor ]]; then
     : "${PLM_ENDPOINT:=$(cmd_config get "vendor.$vendor.endpoint" 2>/dev/null)}"
     : "${PLM_MODEL:=$(cmd_config get "vendor.$vendor.model" 2>/dev/null)}"
+    : "${PLM_HEADER_CMD:=$(cmd_config get "vendor.$vendor.headerCmd" 2>/dev/null)}"
 fi
 
 : "${PLM_MODEL:=$(cmd_config get sib.model 2>/dev/null)}"
@@ -388,7 +389,7 @@ fi
 : "${PLM_TOOLS:=$(cmd_config get --type=path sib.tools 2>/dev/null)}"
 [[ -n $PLM_TOOLS || ! -f $SIB_DIR/tools/tools.json ]] || PLM_TOOLS=$SIB_DIR/tools/tools.json
 
-export PLM_MODEL PLM_ENDPOINT PLM_TOOLS
+export PLM_MODEL PLM_ENDPOINT PLM_HEADER_CMD PLM_TOOLS
 
 fn="cmd_${cmd//-/_}"
 if declare -F "$fn" > /dev/null; then
