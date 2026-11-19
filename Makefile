@@ -9,6 +9,7 @@ LINT = $(shell awk 'FNR == 1 && /^\043!.*[\/ ](ba)?sh$$/ { print FILENAME }' \
 	$(SIB) $(PLM) contrib/tools/*)
 T = $(sort $(wildcard t/t[0-9]*.sh))
 RST = $(wildcard Documentation/*.rst)
+RST2MAN = $(shell command -v rst2man 2>/dev/null)
 MAN = $(patsubst %.rst,%,$(wildcard Documentation/*.[1-9].rst))
 
 tarball: doc
@@ -35,14 +36,13 @@ ${T}:
 clean:
 	rm -f *.tar.gz ${MAN}
 
-install: uninstall
+install: uninstall $(if ${RST2MAN},doc)
 	mkdir -p ${DESTDIR}${PREFIX}/bin ${DESTDIR}${PREFIX}/libexec/sib-core
 	cp -R ${SIB} ${PLM} VERSION ${DESTDIR}${PREFIX}/libexec/sib-core
 	ln -sf	../libexec/sib-core/sib ${DESTDIR}${PREFIX}/bin/sib
 	chmod 755 ${DESTDIR}${PREFIX}/bin/sib
-	@# Man pages are installed only when built (make doc needs rst2man)
-	for m in ${MAN}; do \
-		[ -f "$$m" ] || continue; \
+	@for m in ${MAN}; do \
+		[ -f "$$m" ] || { echo "warning: no rst2man, skipping $$m" >&2; continue; }; \
 		d=${DESTDIR}${MANDIR}/man$${m##*.}; \
 		mkdir -p "$$d" && cp "$$m" "$$d"; \
 	done
