@@ -63,7 +63,7 @@ done < <(
          refs/conv/
 )
 
-((${#ancestor_refs[@]})) || exit
+((${#ancestor_refs[@]})) || exit 0
 
 printf '\nchain (HEAD -> root):\n'
 if parent=$(sib git rev-parse -q --verify "$head_hash" 2>/dev/null); then
