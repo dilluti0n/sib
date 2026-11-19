@@ -11,7 +11,9 @@ LINT = $(shell awk 'FNR == 1 && /^\043!.*[\/ ](ba)?sh$$/ { print FILENAME }' \
 T = $(sort $(wildcard t/t[0-9]*.sh))
 RST = $(wildcard Documentation/*.rst)
 RST2MAN = $(shell command -v rst2man 2>/dev/null)
-MAN = $(patsubst %.rst,%,$(wildcard Documentation/*.[1-9].rst))
+MAN_SRC = $(patsubst %.rst,%,$(wildcard Documentation/*.[1-9].rst))
+# A tarball ships the built pages without their .rst
+MAN = $(sort ${MAN_SRC} $(wildcard Documentation/*.[1-9]))
 
 tarball: doc
 	echo '${VERSION}' >.version
@@ -38,7 +40,7 @@ ${T}:
 	@bash $@
 
 clean:
-	rm -f *.tar.gz ${MAN} .version
+	rm -f *.tar.gz ${MAN_SRC} .version
 
 install: uninstall $(if ${RST2MAN},doc)
 	mkdir -p ${DESTDIR}${PREFIX}/bin ${DESTDIR}${PREFIX}/libexec/sib-core
