@@ -106,7 +106,8 @@ cmd_mktrace() {
     if [[ -n $lines ]]; then
         keys=$(printf '%s\n' "$lines" | tf_key) || die 'invalid trace format'
 
-        printf '%s\n' "$keys" | sort | uniq -d | grep -q . &&
+        # Not `grep -q': under pipefail its early exit fails uniq
+        [[ -z $(printf '%s\n' "$keys" | sort | uniq -d) ]] ||
             die 'duplicate key found in input'
     fi
 
@@ -132,8 +133,8 @@ cmd_ls_trace() {
 
     keys=$(tf_key <<<"$tmp") || die 'invalid trace format'
 
-    printf '%s\n' "$keys" | sort | uniq -d | grep -q . &&
-            die "duplicate key found in trace $1"
+    [[ -z $(printf '%s\n' "$keys" | sort | uniq -d) ]] ||
+        die "duplicate key found in trace $1"
 
     printf '%s\n' "$tmp"
 }
