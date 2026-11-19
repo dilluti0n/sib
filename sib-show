@@ -13,19 +13,17 @@ die() {
 
 usage() {
     cat <<EOF
-usage: ${NAME} [-ch] [-k <key>] [<chain-ish>]
+usage: ${NAME} [-h] [-k <key>] [<chain-ish>]
   -k <key>    Only show <key>'s value on <chain-ish>
-  -c          Same as \`-k content'
   -h          Show this help
 EOF
 }
 
 key=
-while getopts hk:c o; do
+while getopts hk: o; do
     case $o in
         h) usage; exit 0 ;;
         k) key="$OPTARG" ;;
-        c) key=content   ;;
         *) usage; exit 1 ;;
     esac
 done
