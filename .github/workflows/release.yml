@@ -29,6 +29,9 @@ jobs:
           tag="${GITHUB_REF_NAME}"
           echo "version=${tag#v}" >>"$GITHUB_OUTPUT"
 
+      - name: Install rst2man
+        run: sudo apt-get update && sudo apt-get install -y python3-docutils
+
       - name: Build tarball
         run: make tarball
 
