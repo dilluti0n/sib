@@ -12,6 +12,7 @@ readonly DEFAULT_PLM_ENDPOINT=https://api.openai.com/v1/responses
 readonly COMMIT_DATE='999999999 +0000'
 
 die() {
+    [ $? -ne 141 ] || exit 141  # reader closed the pipe (SIGPIPE)
     [ $# -eq 0 ] || echo fatal: "$@" >&2
     exit 1
 }

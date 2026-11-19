@@ -8,6 +8,7 @@ set -euo pipefail
 NAME=$(basename -- "$0")
 
 die() {
+    [ $? -ne 141 ] || exit 141  # reader closed the pipe (SIGPIPE)
     printf 'err: %s\n' "$1" >&2
     exit 2
 }
