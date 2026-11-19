@@ -115,6 +115,11 @@ expect_input_fail() {
     pass "$description"
 }
 
+# Print <trace> as one JSON line
+trace_json() {
+    sib rev-jsonl "$(sib chain-trace "$1")"
+}
+
 head_hash() {
     sib rev-parse HEAD
 }

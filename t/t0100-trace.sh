@@ -13,7 +13,7 @@ trace=$(
         sib mktrace-json
 )
 
-assert_eq "hello" "$(sib ls-trace-json "$trace" | jq -r .content)" \
+assert_eq "hello" "$(trace_json "$trace" | jq -r .content)" \
     "trace JSON round-trips string content"
 
 expect_input_fail \
@@ -49,12 +49,12 @@ assert_match "$raw_trace" '^[0-9a-f]{40,64}$' \
     "mktrace prints a valid object ID"
 
 assert_eq "raw payload" \
-    "$(sib ls-trace-json "$raw_trace" | jq -r .content)" \
+    "$(trace_json "$raw_trace" | jq -r .content)" \
     "mktrace accepts the documented key/hash format"
 
 empty_trace=$(sib mktrace </dev/null)
 
-assert_json_eq '{}' "$(sib ls-trace-json "$empty_trace")" \
+assert_json_eq '{}' "$(trace_json "$empty_trace")" \
     "mktrace creates an empty logical trace"
 
 expect_input_fail \
@@ -107,7 +107,7 @@ rich_trace=$(
         sib mktrace-json
 )
 
-assert_json_eq "$rich_json" "$(sib ls-trace-json "$rich_trace")" \
+assert_json_eq "$rich_json" "$(trace_json "$rich_trace")" \
     "JSON trace preserves multiline, tab, Unicode, and empty strings"
 
 expect_input_fail \
@@ -142,7 +142,7 @@ expect_input_fail \
 
 colon_json='{"sib:model":"m","content":"x"}'
 assert_json_eq "$colon_json" \
-    "$(sib ls-trace-json "$(printf '%s' "$colon_json" | sib mktrace-json)")" \
+    "$(trace_json "$(printf '%s' "$colon_json" | sib mktrace-json)")" \
     "mktrace-json accepts a colon-containing key"
 
 expect_input_fail \
@@ -170,9 +170,5 @@ expect_fail \
 expect_fail \
     "ls-trace requires exactly one argument" \
     sib ls-trace "$raw_trace" "$empty_trace"
-
-expect_fail \
-    "ls-trace-json requires exactly one argument" \
-    sib ls-trace-json "$raw_trace" "$empty_trace"
 
 test_done

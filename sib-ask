@@ -109,7 +109,7 @@ while :; do
 
     sib update-ref -m "ask: ${reflog:-$new}" ${noderef:+"$noderef"} HEAD "$new"
 
-    [[ $(sib ls-trace-json "$new" | jq -r '.type // empty') == function_call ]] || break
+    [[ $(sib rev-jsonl --max-count=1 "$new" | jq -r '.type // empty') == function_call ]] || break
 
     # The model is waiting for tool output. Run the calls of this
     # response only, not old ones left in a (possibly fetched) chain,

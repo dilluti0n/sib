@@ -172,19 +172,6 @@ cmd_mktrace_json() {
     cmd_mktrace <<<"$tr"
 }
 
-# print single trace object to one-line json (jsonl)
-cmd_ls_trace_json() {
-    [[ $# -eq 1 ]] || die 'usage: ls-trace-json <trace>'
-
-    local entries
-    entries=$(cmd_ls_trace "$1") || die
-    [ -n "$entries" ] || { echo '{}'; return 0; }
-    echo "$entries" | while IFS=$'\t' read -r hash key; do
-        lgit cat-file blob "$hash" \
-            | jq -Rsc --arg k "$key" '{($k): .}'
-    done | jq -cs 'add // {}'
-}
-
 # chain-jsonl [-p <chain>]
 cmd_chain_jsonl() {
     local line trace chain parent= n=0
