@@ -9,7 +9,7 @@ test_description='Ref plumbing: rev-parse, update-ref, show-ref'
 sib init >/dev/null 2>&1
 printf 'first turn' | sib ask -c >/dev/null
 
-raw_trace=$(printf '%s' '{"content":"root"}' | sib mktrace-json)
+raw_trace=$(printf '%s' '{"content":"root"}' | json_trace)
 deterministic_root_a=$(sib chain-trace "$raw_trace")
 deterministic_child_a=$(sib chain-trace -p "$deterministic_root_a" "$raw_trace")
 

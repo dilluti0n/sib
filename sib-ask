@@ -84,7 +84,7 @@ fi
 [[ -n $parent ]] || die 'refuse to do worthless job with -nr'
 
 # Items like function_call_output may have no content
-reflog=$(sib show -k content "$parent" 2>/dev/null | tr -s '[:space:]' ' ' | cut -c1-72) || :
+reflog=$(sib show "$parent:content" 2>/dev/null | tr -s '[:space:]' ' ' | cut -c1-72) || :
 
 [[ -n $only_chain ]] && {
     sib update-ref -m "ask (user): ${reflog:-$parent}" ${noderef:+"$noderef"} HEAD "$parent"
@@ -109,7 +109,7 @@ while :; do
 
     sib update-ref -m "ask: ${reflog:-$new}" ${noderef:+"$noderef"} HEAD "$new"
 
-    [[ $(sib ls-trace-json "$new" | jq -r '.type // empty') == function_call ]] || break
+    [[ $(sib rev-jsonl --max-count=1 "$new" | jq -r '.type // empty') == function_call ]] || break
 
     # The model is waiting for tool output. Run the calls of this
     # response only, not old ones left in a (possibly fetched) chain,

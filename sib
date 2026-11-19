@@ -151,11 +151,8 @@ tf_blob() {
     printf '%s\t%s\n' "$hash" "$key"
 }
 
-# Input: {"key": "value", "key": "value", ...}
-# shellcheck disable=SC2120 # invoked via cmd_* dispatch
-cmd_mktrace_json() {
-    [[ $# -eq 0 ]] || die 'no argument is allowed'
-
+# Make a trace from one JSON object of string values on stdin
+mktrace_json() {
     local json tr
 
     json=$(cat)
@@ -172,27 +169,6 @@ cmd_mktrace_json() {
     cmd_mktrace <<<"$tr"
 }
 
-# print single trace object to one-line json (jsonl)
-cmd_ls_trace_json() {
-    [[ $# -eq 1 ]] || die 'usage: ls-trace-json <trace>'
-
-    local entries
-    entries=$(cmd_ls_trace "$1") || die
-    [ -n "$entries" ] || { echo '{}'; return 0; }
-    echo "$entries" | while IFS=$'\t' read -r hash key; do
-        lgit cat-file blob "$hash" \
-            | jq -Rsc --arg k "$key" '{($k): .}'
-    done | jq -cs 'add // {}'
-}
-
-cmd_chain_trace_json() {
-    local tmp
-
-    tmp="$(cmd_mktrace_json)" || die
-
-    cmd_chain_trace "$@" "$tmp"
-}
-
 # chain-jsonl [-p <chain>]
 cmd_chain_jsonl() {
     local line trace chain parent= n=0
@@ -205,7 +181,7 @@ cmd_chain_jsonl() {
 
     while IFS= read -r line || [ -n "$line" ]; do
         [ -n "$line" ] || continue          # skip blank lines
-        trace=$(printf '%s' "$line" | cmd_mktrace_json) \
+        trace=$(printf '%s' "$line" | mktrace_json) \
             || die "mktrace failed at line $((n+1))"
         if [ -z "$parent" ]; then
             chain=$(cmd_chain_trace "$trace") || die

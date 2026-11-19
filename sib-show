@@ -13,30 +13,45 @@ die() {
 
 usage() {
     cat <<EOF
-usage: ${NAME} [-h] [-k <key>] [<chain-ish>]
-  -k <key>    Only show <key>'s value on <chain-ish>
+usage: ${NAME} [-h] [<chain-ish>[:<key>]]
+  Show <chain-ish> (default HEAD), or only the value of <key> on it
   -h          Show this help
 EOF
 }
 
-key=
-while getopts hk: o; do
+while getopts h o; do
     case $o in
         h) usage; exit 0 ;;
-        k) key="$OPTARG" ;;
         *) usage; exit 1 ;;
     esac
 done
 shift $((OPTIND - 1))
 
+[[ $# -le 1 ]] || { usage >&2; exit 1; }
 target="${1:-HEAD}"
 
-chain=$(sib rev-parse "$target")
+# Split <chain-ish>:<key> at the first ':' outside @{...}, which may
+# hold a date like @{10:00}
+chain_ish=$target key= has_key=
+rest=$target pre=
+while [[ $rest == *:* ]]; do
+    pre+=${rest%%:*}
+    rest=${rest#*:}
+    opens=${pre//[^\{]/} closes=${pre//[^\}]/}
+    if (( ${#opens} == ${#closes} )); then
+        chain_ish=$pre key=$rest has_key=1
+        break
+    fi
+    pre+=:
+done
 
-if [[ ! -z $key ]]; then
+chain=$(sib rev-parse "$chain_ish") || exit 1
+
+if [[ -n $has_key ]]; then
+    [[ -n $key ]] || die "no key given: $target"
     blob=$(sib ls-trace "$chain" \
         | awk -F'\t' -v k="$key" '$2 == k { print $1 }')
-    [[ -n $blob ]] || die "no key '$key' on $chain"
+    [[ -n $blob ]] || die "no key '$key' on $chain_ish"
     sib git cat-file blob "$blob"
     exit 0
 fi

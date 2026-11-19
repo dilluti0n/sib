@@ -13,6 +13,7 @@ SYNOPSIS
 ========
 
 | *<chain-ish>*
+| *<chain-ish>*\ **:**\ *<key>*
 | *<range>*
 | *<name>*
 | *<refname>*
@@ -54,6 +55,10 @@ ones are **~**\ *n* (*n*\ th ancestor), **^** (parent) and **@{**\ *n*\ **}**
 (*n*\ th prior value of the ref, from its reflog). A bare **@{**\ *n*\ **}**
 applies to the ref HEAD follows, or to HEAD when it is detached. Since sib
 commits carry no message, **^{/**\ *re*\ **}** and **:/**\ *re* never match.
+
+A *<chain-ish>* followed by **:**\ *<key>* names the value of *<key>*
+on that chain, byte for byte. The split is at the first **:** outside
+**@{...}**, so a key may itself contain **:**. Only **show** takes it.
 
 Taken by **ask -p**, **switch**, **save** (target), **log**, **show**,
 **edit**, **tool pending**, **ls-chain**, **chain-trace -p**,
@@ -101,6 +106,9 @@ Examples
 
 **sib show work~1**
     The chain before the tip of **refs/conv/work**.
+
+**sib show HEAD~2:content**
+    The content of the item two before HEAD.
 
 **sib log work@{1}**
     The conversation as it was before the last update of **work**.
