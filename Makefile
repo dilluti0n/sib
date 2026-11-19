@@ -16,10 +16,14 @@ MAN_SRC = $(patsubst %.rst,%,$(wildcard Documentation/*.[1-9].rst))
 MAN = $(sort ${MAN_SRC} $(wildcard Documentation/*.[1-9]))
 
 tarball: doc
-	echo '${VERSION}' >.version
-	tar --transform 's,^\.version$$,VERSION,' --transform "s,^,${PN}/," \
-		-czvf ${PN}.tar.gz ${SIB} ${PLM} ${MAN} .version Makefile README.md COPYING
-	rm -f .version
+	rm -rf ${PN}
+	mkdir -p ${PN}/Documentation
+	cp -p ${SIB} ${PLM} Makefile README.md COPYING ${PN}
+	cp -p ${MAN} ${PN}/Documentation
+	echo '${VERSION}' >${PN}/VERSION
+	tar -cf ${PN}.tar ${PN}
+	gzip -f ${PN}.tar
+	rm -rf ${PN}
 
 doc: ${MAN}
 
@@ -40,7 +44,7 @@ ${T}:
 	@bash $@
 
 clean:
-	rm -f *.tar.gz ${MAN_SRC} .version
+	rm -f *.tar.gz ${MAN_SRC}
 
 install: uninstall $(if ${RST2MAN},doc)
 	mkdir -p ${DESTDIR}${PREFIX}/bin ${DESTDIR}${PREFIX}/libexec/sib-core
