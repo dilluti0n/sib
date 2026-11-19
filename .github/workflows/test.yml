@@ -42,3 +42,63 @@ jobs:
         run: command -v jq || brew install jq
 
       - run: bash --version && make -k test
+
+  install:
+    name: install (${{ matrix.os }}, ${{ matrix.from }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        # git: a clone, archive: GitHub's source archive, tarball: make tarball
+        from: [git, archive, tarball]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then
+              brew install docutils
+          else
+              sudo apt-get update
+              sudo apt-get install -y python3-docutils man-db
+          fi
+          # make install runs git describe as root
+          sudo git config --system --add safe.directory '*'
+
+      - name: Prepare the source tree
+        run: |
+          case ${{ matrix.from }} in
+          git)
+              src=$PWD
+              want=$(git describe --always --dirty) ;;
+          archive)
+              git archive --prefix=src/ HEAD | tar -x -C "$RUNNER_TEMP"
+              src=$RUNNER_TEMP/src
+              want=$(cat VERSION) ;;
+          tarball)
+              want=$(git describe --always --dirty)
+              make tarball
+              tar -xzf "sib-${want#v}.tar.gz" -C "$RUNNER_TEMP"
+              src=$RUNNER_TEMP/sib-${want#v} ;;
+          esac
+          echo "SRC=$src" >>"$GITHUB_ENV"
+          echo "WANT=sib version ${want#v}" >>"$GITHUB_ENV"
+
+      # Keep PATH so sudo finds rst2man from Homebrew
+      - run: sudo env "PATH=$PATH" make -C "$SRC" install
+
+      - name: Check the installed version
+        run: |
+          got=$(/usr/local/bin/sib version)
+          echo "$got"
+          test "$got" = "$WANT"
+
+      - name: Check man finds the installed pages
+        run: |
+          got=$(man -w 7 sibrevisions)
+          echo "$got"
+          # Ubuntu finds it through the /usr/local/man symlink
+          test "$got" -ef /usr/local/share/man/man7/sibrevisions.7
