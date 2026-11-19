@@ -3,7 +3,8 @@ MANDIR := ${PREFIX}/share/man
 
 SIB = $(filter-out %.tar.gz, $(wildcard sib-*)) sib
 PLM = $(wildcard plm-*)
-VERSION = $(shell cat VERSION)
+GIT_VERSION = $(if $(wildcard .git),$(shell git describe --always --dirty 2>/dev/null))
+VERSION = $(or $(patsubst v%,%,$(GIT_VERSION)),$(shell cat VERSION))
 PN = sib-${VERSION}
 LINT = $(shell awk 'FNR == 1 && /^\043!.*[\/ ](ba)?sh$$/ { print FILENAME }' \
 	$(SIB) $(PLM) contrib/tools/*)
@@ -13,7 +14,10 @@ RST2MAN = $(shell command -v rst2man 2>/dev/null)
 MAN = $(patsubst %.rst,%,$(wildcard Documentation/*.[1-9].rst))
 
 tarball: doc
-	tar --transform "s,^,${PN}/," -czvf ${PN}.tar.gz ${SIB} ${PLM} ${MAN} VERSION Makefile README.md COPYING
+	echo '${VERSION}' >.version
+	tar --transform 's,^\.version$$,VERSION,' --transform "s,^,${PN}/," \
+		-czvf ${PN}.tar.gz ${SIB} ${PLM} ${MAN} .version Makefile README.md COPYING
+	rm -f .version
 
 doc: ${MAN}
 
@@ -34,11 +38,12 @@ ${T}:
 	@bash $@
 
 clean:
-	rm -f *.tar.gz ${MAN}
+	rm -f *.tar.gz ${MAN} .version
 
 install: uninstall $(if ${RST2MAN},doc)
 	mkdir -p ${DESTDIR}${PREFIX}/bin ${DESTDIR}${PREFIX}/libexec/sib-core
-	cp -R ${SIB} ${PLM} VERSION ${DESTDIR}${PREFIX}/libexec/sib-core
+	cp -R ${SIB} ${PLM} ${DESTDIR}${PREFIX}/libexec/sib-core
+	echo '${VERSION}' >${DESTDIR}${PREFIX}/libexec/sib-core/VERSION
 	ln -sf	../libexec/sib-core/sib ${DESTDIR}${PREFIX}/bin/sib
 	chmod 755 ${DESTDIR}${PREFIX}/bin/sib
 	@for m in ${MAN}; do \
