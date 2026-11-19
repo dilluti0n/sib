@@ -13,14 +13,14 @@ die() {
 
 usage() {
     cat <<EOF
-usage: ${NAME} [-t <refname>] <chain-ish>
-       ${NAME} [-t <refname>] -f <ref>
+usage: ${NAME} [-t <name>] <chain-ish>
+       ${NAME} [-t <name>] -f <name>
        ${NAME} -h
 
 Move HEAD to <chain-ish>. By default, HEAD is detached at the resolved
 chain
-  -t  save HEAD to <refname> before switch
-  -f  HEAD follows <ref> after switch
+  -t  save HEAD as <name> before switch
+  -f  HEAD follows <name> after switch
   -h  print this help
 EOF
 }
@@ -41,24 +41,8 @@ chain="$1"
 
 [[ -n $refname ]] && sib save "$refname"
 
-is_head_rev() {
-    local b=${1%%[~^:]*}
-    b=${b%%@\{*}
-    case $b in
-        HEAD|@|'') return 0 ;;
-    esac
-    return 1
-}
-
-# xxx, conv/xxx, refs/conv/xxx -> refs/conv/xxx
-conv_ref() {
-    local r=${1#refs/}
-    printf 'refs/conv/%s\n' "${r#conv/}"
-}
-
 if [[ -n $symbolic ]]; then
-    is_head_rev "$chain" && die "-f: $chain is not ref"
-    target=$(conv_ref "$chain")
+    target=$(sib rev-parse --ref "$chain") || die "-f: $chain is not a name"
     sib symbolic-ref -m "switch to symbolic $chain" HEAD "$target" ||
         die "invalid name: $chain"
     echo "HEAD now follows $chain" >&2

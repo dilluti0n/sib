@@ -60,9 +60,7 @@ else
 fi
 
 name="$1"
-ref="refs/conv/$name"
-
-sib git check-ref-format "$ref" || die "invalid name: $name"
+ref=$(sib rev-parse --ref "$name") || exit 1
 
 if [[ -n $delete ]]; then
     sib update-ref --no-deref -d -m "save: delete $name" "$ref"
