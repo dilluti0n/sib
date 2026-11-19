@@ -1,224 +1,40 @@
-# Sib: a standard Unix LLM client
+# Sib
 
-Sib is a git-based LLM client. Each conversation is a Git commit
-(literally). Conversations are saved by default, you can fork from
-anywhere, [fetch others' conversation and continue from it](#sharing),
-[push yours to any git repository](#sharing)... and more.
+Sib is a git-based LLM client. Each conversation is a chain of git
+commits, so you can fork from any turn, save it, and fetch or push it
+like any git ref.
 
-Typical usage:
-
-    echo 'Why did Evangelion 3.0 suddenly go off the rails?' | sib ask
-    sib log
-    echo 'Which of those two reasons matters more?' | sib ask
-
-Now, the store looks like this:
-
-    * fa754c HEAD~3 {"role":"user", "content":"Why did Evangelion 3.0 suddenly ..."}
-    * b16df7 HEAD~2 {"role":"assistant", "content":"Because *Evangelion 3.0: You ..."}
-    * 1c2e90 HEAD~1 {"role":"user", "content":"Which of those two reasons matters ..."}
-    * 280f09 HEAD   {"role":"assistant", "content":"The **intentional creative ..."}
-
-This is the overall concept. But [why?](./Documentation/Tutorial.rst)
-
-- [tutorial](./Documentation/Tutorial.rst)
-- [Quickstart](#quickstart)
-- [Tips](#tips)
-- [Hacking](#hacking)
-
-## Quickstart
-
-Here lies the unavoidable boilerplate you must endure to use Sib.
-
-Dependencies are bash >= 3.2, git >= 2.33, [jq](https://jqlang.org/)
->= 1.6, curl, awk and coreutils.
-
-Download [release
-tarball](https://github.com/dilluti0n/sib/releases/latest) or clone
-this repo:
-
-    git clone https://git.dilluti0n.com/sib.git
-
-Global install:
-
-    sudo make install
-
-User install:
-
-    make PREFIX="$HOME/.local" install
-
-    # on macOS, add this line to .zshrc and rerun terminal
-    export PATH="$HOME/.local/bin:$PATH"
-
-Init the repository:
-
+    git clone https://git.dilluti0n.com/sib.git && cd sib
+    make PREFIX="$HOME/.local" install   # or: sudo make install
     sib init
-
-Check defaults:
-
-    $ sib status
-    Sib:      /home/hskim/.sib
-    Vendor:   openai
-    Endpoint: https://api.openai.com/v1/responses
-    Model:    gpt-6-luna
-
-    HEAD: (unborn)
-
-Add a vendor and switch to it (defaults work out of the box for
-openai).
-
-    sib config edit # Inspect and edit the defaults
-    sib config set vendor.cyberdyne.endpoint https://api.cyberdyne.com/v1/responses
-    sib config set vendor.cyberdyne.model skynet-101-arnold
-    sib config set sib.vendor cyberdyne
-
-Export the API key (Add it to ~/.bashrc to make it persist):
-
     export PLM_API_KEY='sk-xxxxxx'
 
-Or let the vendor print its auth headers, run on each request:
+Requires bash >= 3.2, git >= 2.33, [jq](https://jqlang.org/) >= 1.6,
+curl, awk and coreutils.
 
-    sib config set vendor.cyberdyne.headerCmd \
-        'printf "Authorization: Bearer %s\n" "$(pass show cyberdyne)"'
+- Setup (vendors, auth): [Documentation/Setup.rst](./Documentation/Setup.rst)
+- Tutorial, and why: [Documentation/Tutorial.rst](./Documentation/Tutorial.rst)
+- Tips: [Documentation/Tips.rst](./Documentation/Tips.rst)
+- Trace format: [Documentation/KeyFormat.rst](./Documentation/KeyFormat.rst)
+- Latest release: https://github.com/dilluti0n/sib/releases/latest
+- Shared conversations: https://github.com/sib-project/hub
+- Issue tracker: https://github.com/dilluti0n/sib/issues
+- Email: sib-project@dilluti0n.com
 
-Ask something:
+## Usage
 
     echo 'Why did Evangelion end like that?' | sib ask
-    sib ask -rp HEAD~1 -m skynet-500   # Re-ask with other model
+    sib log                       # read the conversation
+    sib ask -rp HEAD~1            # regenerate the last reply
+    echo '...' | sib ask -p HEAD~2  # fork from an earlier turn
+    sib save eva                  # name it
+    sib switch -f eva             # keep eva moving with sib ask
+    sib status
 
-Now, enjoy!
+    sib <cmd> -h
 
-## Tips
-
-### Sharing
-
-We previously fetched the conversation in the tutorial:
-
-    sib git fetch https://github.com/sib-project/hub \
-        dilluti0n/nvim-sib-log-res:refs/conv/nvim-sib-log-res
-
-The above command copies the conversation directly to your repository.
-You can read it with `sib log nvim-sib-log-res` or continue it wherever
-you want with `sib ask -p nvim-sib-log-res`.
-
-The reverse works too:
-
-    sib git push <your-repo-url> <local-ref>:refs/heads/<remote-ref>
-
-Wanna share yours with random internet dudes? Publish to
-[sib-project/hub](https://github.com/sib-project/hub). Push to any
-public git repo as above and [open a share
-issue](https://github.com/sib-project/hub/issues/new?template=share.yml). It
-will be automatically published to there.
-
-### Usage of sib ask
-
-`sib ask` has a lot of flags. That is because it does a lot of things
-in the first place. Each flag changes one part of what it does, and
-they combine.
-
-For example:
-
-    echo 'Summarize the entire context for use in the next conversation.' | sib ask
-    sib show -k content | sib ask -nc
-
-`sib show -k content` prints only `content` field of `HEAD`, which is the
-summary just generated. `-n` ignores the existing `HEAD`, creates a
-new chain and switch to it. `-c` chains only user turns without
-querying the model.
-
-So when a conversation gets too long, this starts a fresh one while
-carrying the context over.
-
-### Markdown rendering and emacs/neovim extension
-
-If you need Markdown rendering:
-
-    sib log | glow -p
-
-Or inside neovim:
-
-    { echo Write a code which do same thing in neovim lua; echo; cat <<EOF
-    (defun sib-log ()
-      (interactive)
-      (require 'markdown-mode)
-
-      (let ((buf (get-buffer-create "*sib*"))
-            (err (get-buffer-create "*sib-error*")))
-        (async-shell-command "sib log" buf err)
-
-        (with-current-buffer buf
-          (markdown-mode)
-          (font-lock-ensure))
-
-        (pop-to-buffer buf)))
-    EOF
-    } | sib ask -n
-
-
-To save you API usage, I've already done it for you. Set it up with
-the following commands:
-
-    sib git fetch https://github.com/sib-project/hub \
-        dilluti0n/nvim-sib-log-res:refs/conv/nvim-sib-log
-
-    sib show -k content nvim-sib-log >> ~/.config/nvim/init.lua
-    nvim +SibLog
-
-Also, I checked it does the things, but I don't really know much about
-Neovim or Lua. So the generated script came out at 74 lines (the elisp
-above is 12) and may be hard to maintain.
-
-The nice part is, you already have the whole conversation behind it!
-So someone who actually knows their way around could pick it up from
-any turn, refactor it with AI, and upload an improved version.
-
-## Hacking
-
-`sib <cmd>` execs `sib-<cmd>` from `PATH`. Every command you have used
-so far is just that.
-
-So is yours. The hub URL above is too long to type twice:
-
-    #!/usr/bin/env bash
-    # sib-hub, anywhere in $PATH
-    exec sib git fetch https://github.com/sib-project/hub "$1:refs/conv/${1#*/}"
-
-And run with
-
-    sib hub dilluti0n/nvim-sib-log-res
-    sib show nvim-sib-log-res
-
-What makes this cheap is the plumbing underneath. A conversation is a
-*chain* of commits. Each commit's tree is a *trace*, a flat key-value
-map (`type`, `role`, `content`, ...) whose values are blobs. See
-[reserved keys](./Documentation/KeyFormat.rst).
-
-    sib rev-jsonl <chain>         Print <chain> to jsonl format
-    sib chain-jsonl [-p <chain>]  Chain jsonl file to sib store and print its id
-
-    sib rev-parse / show-ref / update-ref / ls-refs / symbolic-ref
-    sib git ...                   raw git on the store
-
-The [sib-ask](./sib-ask) code (49 lines excluding flag parsing) will
-also help.
-
-These resources are not fully documented yet, so some of it may not be
-obvious. Please feel free to ask about it via
-[email](mailto:sib-project@dilluti0n.com) or [issue
-tracker](https://github.com/dilluti0n/sib/issues).
-
-### Minimum rules for compatibility
-
-- Keys must match `[A-Za-z_][A-Za-z0-9._:-]*`.
-- `type` defaults to `message`; the other [reserved
-  keys](./Documentation/KeyFormat.rst) depend on it.
-- The commit date is fixed at `999999999 +0000`, with author and
-  committer `Sibyl <sib@local>`. Through this, we can obtain the same
-  hash for the same conversation chain.
-
-The project is in its early stages. The codebase is not yet stable
-enough for large feature work, but you can get involved in shaping
-the core API.
+See [sibrevisions(7)](./Documentation/sibrevisions.7.rst) for how to name
+chains (`HEAD~2`, `eva@{1}`, ...).
 
 ---
 

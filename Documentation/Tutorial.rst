@@ -91,7 +91,7 @@ Finally, if you want to start new conversation, use ``-n``. It sets
 empty parent.
 
 Understanding this data model natively gives you every feature an LLM
-client needs -- including `backup and sharing <../README.md#tips>`__.
+client needs -- including `backup and sharing <Tips.rst#sharing>`__.
 Other tools ship these as separate, complex features you have to learn.
 
 That's why.

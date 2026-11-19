@@ -29,3 +29,12 @@ Sib trace format. Follows `Open Responses
 +-----------------------+----------------------------------------------+
 | ``status``            | Present only when not ``completed``          |
 +-----------------------+----------------------------------------------+
+
+Minimum rules for compatibility
+-------------------------------
+
+- Keys must match ``[A-Za-z_][A-Za-z0-9._:-]*``.
+- ``type`` defaults to ``message``; the other reserved keys depend on it.
+- The commit date is fixed at ``999999999 +0000``, with author and
+  committer ``Sibyl <sib@local>``. Through this, we can obtain the same
+  hash for the same conversation chain.
