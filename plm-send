@@ -9,10 +9,13 @@ set -o pipefail
 # one line per function call
 fc_line='"function_call: \(.name)(\(.arguments))"'
 
-auth_header=()
-[[ -n ${PLM_API_KEY:-} ]] && auth_header=(-H "Authorization: Bearer ${PLM_API_KEY}")
+# Read headers from a file so the key does not show up in argv (ps, /proc)
+headers() {
+    echo 'Content-Type: application/json'
+    [[ -z ${PLM_API_KEY:-} ]] || printf 'Authorization: Bearer %s\n' "$PLM_API_KEY"
+}
 
-curl -sS -N -i "$PLM_ENDPOINT" -H "Content-Type: application/json" "${auth_header[@]}" \
+curl -sS -N -i "$PLM_ENDPOINT" -H @<(headers) \
      --retry "${PLM_RETRY:-3}" --retry-delay 1 --data-binary @- | {
     shopt -s nocasematch
 
