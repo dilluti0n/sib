@@ -151,11 +151,8 @@ tf_blob() {
     printf '%s\t%s\n' "$hash" "$key"
 }
 
-# Input: {"key": "value", "key": "value", ...}
-# shellcheck disable=SC2120 # invoked via cmd_* dispatch
-cmd_mktrace_json() {
-    [[ $# -eq 0 ]] || die 'no argument is allowed'
-
+# Make a trace from one JSON object of string values on stdin
+mktrace_json() {
     local json tr
 
     json=$(cat)
@@ -184,7 +181,7 @@ cmd_chain_jsonl() {
 
     while IFS= read -r line || [ -n "$line" ]; do
         [ -n "$line" ] || continue          # skip blank lines
-        trace=$(printf '%s' "$line" | cmd_mktrace_json) \
+        trace=$(printf '%s' "$line" | mktrace_json) \
             || die "mktrace failed at line $((n+1))"
         if [ -z "$parent" ]; then
             chain=$(cmd_chain_trace "$trace") || die

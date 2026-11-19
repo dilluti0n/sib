@@ -10,7 +10,7 @@ sib init >/dev/null 2>&1
 
 raw_blob=$(printf '%s' 'raw payload' | sib git hash-object -w --stdin)
 raw_trace=$(printf '%s\tcontent\n' "$raw_blob" | sib mktrace)
-rich_trace=$(printf '%s' '{"role":"user","content":"rich"}' | sib mktrace-json)
+rich_trace=$(printf '%s' '{"role":"user","content":"rich"}' | json_trace)
 
 jsonl_chain=$(
     printf '%s\n' \

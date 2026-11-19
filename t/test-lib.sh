@@ -115,6 +115,14 @@ expect_input_fail() {
     pass "$description"
 }
 
+# Print the trace of a one-turn chain made from the JSON on stdin
+json_trace() {
+    local chain
+
+    chain=$(jq -c . | sib chain-jsonl) || return
+    sib ls-chain "$chain" | awk '$1 == "trace" { print $2 }'
+}
+
 # Print <trace> as one JSON line
 trace_json() {
     sib rev-jsonl "$(sib chain-trace "$1")"
