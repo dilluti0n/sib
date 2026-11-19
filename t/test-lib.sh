@@ -53,6 +53,24 @@ pass() {
     printf 'ok %d - %s\n' "$tests" "$1"
 }
 
+# Run a command with stdout on a pipe whose reader is already gone,
+# like `cmd | head' after head exits
+run_closed_stdout() {
+    local fifo="$TMPDIR_ROOT/closed-stdout.$$" status=0
+
+    rm -f "$fifo"
+    mkfifo "$fifo"
+    # A reader opens the fifo and leaves at once; once it is waited for,
+    # nobody reads the write end
+    (exec 8<"$fifo") &
+    exec 9>"$fifo"
+    wait "$!"
+    "$@" >&9 || status=$?
+    exec 9>&-
+    rm -f "$fifo"
+    return "$status"
+}
+
 assert_eq() {
     local expected=$1
     local actual=$2
@@ -337,8 +355,9 @@ if [[ -n ${MOCK_PLM_FAIL:-} ]]; then
     exit 42
 fi
 
-# fd 3 is Sib's human-readable streaming output.
-printf 'mock assistant\n' >&3
+# fd 3 is Sib's human-readable streaming output. Like plm-send, a
+# display that cannot be written does not fail the request.
+(printf 'mock assistant\n' >&3) 2>/dev/null || :
 printf '{"output":"mock assistant"}\n'
 EOF
 

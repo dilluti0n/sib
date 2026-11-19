@@ -132,4 +132,12 @@ assert_eq "call_once" \
     "$(sib rev-jsonl HEAD | jq -r 'select(.type == "function_call_output") | .call_id')" \
     "sib ask runs only the calls of the latest response"
 
+rm -f "$TMPDIR_ROOT/fc-closed"
+printf 'use a tool' |
+    run_closed_stdout env MOCK_FUNCTION_CALL_ONCE="$TMPDIR_ROOT/fc-closed" \
+        sib ask -n 2>/dev/null || :
+assert_eq "got:{}err" \
+    "$(sib rev-jsonl HEAD | jq -r 'select(.type == "function_call_output") | .content')" \
+    "sib ask keeps the tool output when nobody reads stdout"
+
 test_done
