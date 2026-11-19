@@ -8,10 +8,13 @@ ancestor_refs=()
 head_ref=$(sib git symbolic-ref -q HEAD 2>/dev/null || :)
 head_hash=$(sib git rev-parse -q --verify HEAD 2>/dev/null || :)
 
-printf 'SIB_DIR:      %s\n' "$SIB_DIR"
-printf 'PLM_MODEL:    %s\n' "$PLM_MODEL"
-printf 'PLM_ENDPOINT: %s\n' "$PLM_ENDPOINT"
-[[ -z ${PLM_TOOLS:-} ]] || printf 'PLM_TOOLS:    %s\n' "$PLM_TOOLS"
+vendor=$(sib config get sib.vendor)
+
+printf 'Sib:      %s\n' "$SIB_DIR"
+[[ -z $vendor ]] || printf 'Vendor:   %s\n' "$vendor"
+printf 'Endpoint: %s\n' "$PLM_ENDPOINT"
+printf 'Model:    %s\n' "$PLM_MODEL"
+[[ -z ${PLM_TOOLS:-} ]] || printf 'Tools:    %s\n' "$PLM_TOOLS"
 
 printf '\n'
 if [[ -z $head_hash ]]; then

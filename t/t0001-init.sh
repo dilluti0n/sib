@@ -33,19 +33,18 @@ assert_contains "$status" "(unborn)" \
 printf 'first turn' | sib ask -c >/dev/null
 
 head_before_reinit=$(sib git rev-parse HEAD)
-model_before_reinit=$(sib config get sib.model)
-endpoint_before_reinit=$(sib config get sib.endpoint)
+assert_contains "$status" $'Vendor:   openai\nEndpoint: https://api.openai.com/v1/responses\nModel:    gpt-6-luna' \
+    "fresh store uses the openai vendor"
+
+config_before_reinit=$(sib config list)
 
 sib init >/dev/null 2>&1
 
 assert_eq "$head_before_reinit" "$(sib git rev-parse HEAD)" \
     "reinitialization preserves HEAD"
 
-assert_eq "$model_before_reinit" "$(sib config get sib.model)" \
-    "reinitialization preserves model configuration"
-
-assert_eq "$endpoint_before_reinit" "$(sib config get sib.endpoint)" \
-    "reinitialization preserves endpoint configuration"
+assert_eq "$config_before_reinit" "$(sib config list)" \
+    "reinitialization preserves configuration"
 
 switch_err=$(
     export SIB_DIR="$TMPDIR_ROOT/unborn-store"

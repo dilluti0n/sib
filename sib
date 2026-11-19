@@ -37,8 +37,10 @@ cmd_init() {
         echo 'ref: refs/conv/scratch' > "$SIB_DIR/HEAD"
         cat <<EOF >> "$SIB_DIR/config"
 [sib]
-        model = $DEFAULT_PLM_MODEL
+        vendor = openai
+[vendor "openai"]
         endpoint = $DEFAULT_PLM_ENDPOINT
+        model = $DEFAULT_PLM_MODEL
 EOF
         echo "Initialized empty Sib store in $SIB_DIR" >&2
     else
@@ -368,7 +370,14 @@ cmd_version() {
 
 export PATH="$script_dir:$PATH"
 
-# Priority: Env > config > Default
+# Priority: Env > config > Default; vendor.<sib.vendor>.* takes
+# priority over sib.{endpoint,model}
+vendor=$(cmd_config get sib.vendor 2>/dev/null)
+if [[ -n $vendor ]]; then
+    : "${PLM_ENDPOINT:=$(cmd_config get "vendor.$vendor.endpoint" 2>/dev/null)}"
+    : "${PLM_MODEL:=$(cmd_config get "vendor.$vendor.model" 2>/dev/null)}"
+fi
+
 : "${PLM_MODEL:=$(cmd_config get sib.model 2>/dev/null)}"
 : "${PLM_MODEL:=$DEFAULT_PLM_MODEL}"
 

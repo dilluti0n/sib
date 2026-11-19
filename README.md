@@ -56,17 +56,20 @@ Init the repository:
 Check defaults:
 
     $ sib status
-    SIB_DIR:      /home/hskim/.sib
-    PLM_MODEL:    gpt-6-luna
-    PLM_ENDPOINT: https://api.openai.com/v1/responses
+    Sib:      /home/hskim/.sib
+    Vendor:   openai
+    Endpoint: https://api.openai.com/v1/responses
+    Model:    gpt-6-luna
 
     HEAD: (unborn)
 
-Change the endpoint/model (defaults work out of the box for openai).
+Add a vendor and switch to it (defaults work out of the box for
+openai).
 
     sib config edit # Inspect and edit the defaults
-    sib config set sib.endpoint https://api.cyberdyne.com/v1/responses
-    sib config set sib.model skynet-101-arnold
+    sib config set vendor.cyberdyne.endpoint https://api.cyberdyne.com/v1/responses
+    sib config set vendor.cyberdyne.model skynet-101-arnold
+    sib config set sib.vendor cyberdyne
 
 Export the API key (Add it to ~/.bashrc to make it persist):
 

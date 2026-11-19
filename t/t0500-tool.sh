@@ -12,7 +12,7 @@ tools_file="$TMPDIR_ROOT/tools.json"
 printf '%s' '[{"type":"function","name":"f","parameters":{"type":"object","properties":{}}}]' >"$tools_file"
 
 sib config set sib.tools "$tools_file"
-assert_contains "$(env -u PLM_TOOLS sib status)" "PLM_TOOLS:    $tools_file" \
+assert_contains "$(env -u PLM_TOOLS sib status)" "Tools:    $tools_file" \
     "sib.tools configuration sets PLM_TOOLS"
 sib config unset sib.tools
 
@@ -99,11 +99,11 @@ assert_eq "" "$(sib tool run </dev/null)" \
     "tool run prints nothing for no calls"
 
 printf '[]' >"$SIB_DIR/tools/tools.json"
-assert_contains "$(env -u PLM_TOOLS sib status)" "PLM_TOOLS:    $SIB_DIR/tools/tools.json" \
+assert_contains "$(env -u PLM_TOOLS sib status)" "Tools:    $SIB_DIR/tools/tools.json" \
     "PLM_TOOLS defaults to \$SIB_DIR/tools/tools.json"
 rm -f "$SIB_DIR/tools/tools.json"
 
-assert_eq "" "$(env -u PLM_TOOLS sib status | grep PLM_TOOLS || :)" \
+assert_eq "" "$(env -u PLM_TOOLS sib status | grep Tools: || :)" \
     "PLM_TOOLS stays unset without tools.json"
 
 assert_eq "ok" \

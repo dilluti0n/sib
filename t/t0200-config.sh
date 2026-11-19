@@ -15,6 +15,8 @@ assert_eq "value with spaces" \
     "$(sib config get sib.robustness.value)" \
     "config preserves arguments containing spaces"
 
+# Without sib.vendor, sib.{endpoint,model} are used
+sib config unset sib.vendor
 sib config set sib.model configured-core-model
 sib config set sib.endpoint https://configured.example.invalid/v1
 
@@ -60,6 +62,36 @@ assert_contains "$probe_output" 'model=environment-core-model' \
 assert_contains "$probe_output" \
     'endpoint=https://environment.example.invalid/v1' \
     "PLM_ENDPOINT environment value overrides configuration"
+
+#
+# sib.vendor names a vendor.<name> section over sib.{endpoint,model}
+#
+
+sib config set vendor.cyberdyne.endpoint https://cyberdyne.example.invalid/v1
+sib config set vendor.cyberdyne.model skynet
+sib config set sib.vendor cyberdyne
+
+probe_output=$(sib core-probe)
+
+assert_contains "$probe_output" 'model=skynet' \
+    "sib.vendor takes the model of its vendor section"
+
+assert_contains "$probe_output" \
+    'endpoint=https://cyberdyne.example.invalid/v1' \
+    "sib.vendor takes the endpoint of its vendor section"
+
+assert_contains "$(PLM_MODEL=environment-core-model sib core-probe)" \
+    'model=environment-core-model' \
+    "PLM_MODEL environment value overrides the vendor"
+
+assert_contains "$(sib status)" \
+    $'Vendor:   cyberdyne\nEndpoint: https://cyberdyne.example.invalid/v1\nModel:    skynet' \
+    "status shows the vendor, its endpoint and model"
+
+sib config unset vendor.cyberdyne.model
+
+assert_contains "$(sib core-probe)" 'model=configured-core-model' \
+    "a vendor without a model falls back to sib.model"
 
 #
 # A sib-<name> executable must not override a built-in cmd_<name>.
