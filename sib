@@ -185,14 +185,6 @@ cmd_ls_trace_json() {
     done | jq -cs 'add // {}'
 }
 
-cmd_chain_trace_json() {
-    local tmp
-
-    tmp="$(cmd_mktrace_json)" || die
-
-    cmd_chain_trace "$@" "$tmp"
-}
-
 # chain-jsonl [-p <chain>]
 cmd_chain_jsonl() {
     local line trace chain parent= n=0
