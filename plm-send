@@ -56,7 +56,8 @@ curl -sS -N -i "$PLM_ENDPOINT" -H @<(headers) \
                    elif .type == \"message\" then .content[0].text
                    elif .type == \"function_call\" then $fc_line
                    else empty end" <<<"$res" >&3
-            exit
+            # The response is out; a failed display does not undo it
+            exit 0
             ;;
         text/event-stream*) ;;
         *)

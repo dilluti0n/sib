@@ -167,4 +167,20 @@ out=$(FAKE_CURL_RESPONSE="$TMPDIR_ROOT/long.http" PATH="$FAKE_BIN:$PATH" \
 assert_eq "r1" "$(jq -r .id <<<"$out")" \
     "plm-send keeps receiving when the display reader goes away"
 
+json_text=$(printf '%0100000d' 0)
+{
+    printf 'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n'
+    jq -nc --arg t "$json_text" \
+        '{id: "r1", output: [{type: "message", role: "assistant",
+                              content: [{type: "output_text", text: $t}]}]}'
+} >"$TMPDIR_ROOT/json.http"
+
+status=0
+out=$(FAKE_CURL_RESPONSE="$TMPDIR_ROOT/json.http" PATH="$FAKE_BIN:$PATH" \
+          PLM_ENDPOINT=http://fake.invalid \
+          "$SOURCE_DIR/plm-send" </dev/null 3> >(head -c 1 >/dev/null)) ||
+    status=$?
+assert_eq "0 r1" "$status $(jq -r .id <<<"$out")" \
+    "plm-send succeeds on JSON when the display reader goes away"
+
 test_done
