@@ -147,4 +147,40 @@ pass "plm-send fails when the header command fails"
     fail "no request is sent when the header command fails"
 pass "no request is sent when the header command fails"
 
+# Enough deltas to fill the display pipe after its reader is gone
+long_body() {
+    local i
+    for ((i = 0; i < 2000; i++)); do
+        sse response.output_text.delta "\"delta\":\"$(printf '%0100d' "$i")\""
+    done
+}
+
+{
+    sse_http long_body
+    sse response.completed '"response":{"id":"r1","output":[]}'
+} >"$TMPDIR_ROOT/long.http"
+
+out=$(FAKE_CURL_RESPONSE="$TMPDIR_ROOT/long.http" PATH="$FAKE_BIN:$PATH" \
+          PLM_ENDPOINT=http://fake.invalid \
+          "$SOURCE_DIR/plm-send" </dev/null 3> >(head -c 1 >/dev/null)) ||
+    fail "plm-send keeps receiving when the display reader goes away"
+assert_eq "r1" "$(jq -r .id <<<"$out")" \
+    "plm-send keeps receiving when the display reader goes away"
+
+json_text=$(printf '%0100000d' 0)
+{
+    printf 'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n'
+    jq -nc --arg t "$json_text" \
+        '{id: "r1", output: [{type: "message", role: "assistant",
+                              content: [{type: "output_text", text: $t}]}]}'
+} >"$TMPDIR_ROOT/json.http"
+
+status=0
+out=$(FAKE_CURL_RESPONSE="$TMPDIR_ROOT/json.http" PATH="$FAKE_BIN:$PATH" \
+          PLM_ENDPOINT=http://fake.invalid \
+          "$SOURCE_DIR/plm-send" </dev/null 3> >(head -c 1 >/dev/null)) ||
+    status=$?
+assert_eq "0 r1" "$status $(jq -r .id <<<"$out")" \
+    "plm-send succeeds on JSON when the display reader goes away"
+
 test_done

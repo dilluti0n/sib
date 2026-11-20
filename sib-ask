@@ -7,6 +7,7 @@ set -euo pipefail
 NAME="$(basename -- "$0")"
 
 die() {
+    [ $? -ne 141 ] || exit 141  # reader closed the pipe (SIGPIPE)
     [ $# -eq 0 ] || echo fatal: "$@" >&2
     exit 1
 }
@@ -116,14 +117,16 @@ while :; do
     # and ask again; if they cannot run, leave HEAD on the call.
     out=$(jq -c 'select(.type == "function_call")' <<<"$items" | sib tool run) || exit 10
 
-    # Show each output squeezed to one line, like plm-send does for calls
-    jq -r '(.content // "" | gsub("\\s+"; " ") | ltrimstr(" ") | rtrimstr(" ")) as $l
-           | "function_call_output: " + $l[:80]
-             + (if ($l | length) > 80 then "..." else "" end)' <<<"$out"
-
     # A tool may have moved HEAD (e.g. sib edit); continue from there
     new=$(sib rev-parse HEAD)
     parent=$(sib chain-jsonl -p "$new" <<<"$out") || exit 10
     reflog="tool output of $new"
     sib update-ref -m "ask (tool): $new" ${noderef:+"$noderef"} HEAD "$parent"
+
+    # Show each output squeezed to one line, like plm-send does for
+    # calls. Only now: the tool has run, so keep its output even if
+    # nobody reads this
+    jq -r '(.content // "" | gsub("\\s+"; " ") | ltrimstr(" ") | rtrimstr(" ")) as $l
+           | "function_call_output: " + $l[:80]
+             + (if ($l | length) > 80 then "..." else "" end)' <<<"$out"
 done

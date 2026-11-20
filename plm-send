@@ -56,7 +56,8 @@ curl -sS -N -i "$PLM_ENDPOINT" -H @<(headers) \
                    elif .type == \"message\" then .content[0].text
                    elif .type == \"function_call\" then $fc_line
                    else empty end" <<<"$res" >&3
-            exit
+            # The response is out; a failed display does not undo it
+            exit 0
             ;;
         text/event-stream*) ;;
         *)
@@ -69,8 +70,9 @@ curl -sS -N -i "$PLM_ENDPOINT" -H @<(headers) \
     tmp=$(mktemp) || exit
     trap 'rm -f "$tmp"' EXIT
 
-    # Display deltas as they arrive with a single jq
-    sed -u 's/\r$//; /^data:/!d; s/^data: \{0,1\}//' | tee "$tmp" |
+    # Display deltas as they arrive with a single jq. If the display
+    # reader goes away, drain the rest so the response still lands.
+    sed -u 's/\r$//; /^data:/!d; s/^data: \{0,1\}//' | tee "$tmp" | {
         jq --unbuffered -Rrj --arg debug "${PLM_DEBUG:-}" "fromjson? |
             if .type == \"response.output_text.delta\" then .delta // empty
             elif .type == \"response.output_text.done\" then \"\\n\"
@@ -79,7 +81,7 @@ curl -sS -N -i "$PLM_ENDPOINT" -H @<(headers) \
             elif .type == \"response.output_item.done\" then
                 .item | select(.type == \"function_call\") | $fc_line + \"\\n\"
             elif \$debug != \"\" then \"event: \\(.type)\\ndata: \\(tojson)\\n\"
-            else empty end" >&3
+            else empty end" >&3 || cat >/dev/null; }
 
     last=$(jq -Rc 'fromjson? | select(.type == "response.completed"
                                       or .type == "response.incomplete"

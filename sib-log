@@ -5,6 +5,7 @@
 NAME="$(basename -- "$0")"
 
 die() {
+    [ $? -ne 141 ] || exit 141  # reader closed the pipe (SIGPIPE)
     [ $# -eq 0 ] || echo fatal: "$@" >&2
     exit 1
 }

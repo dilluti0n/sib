@@ -217,4 +217,12 @@ assert_eq "$(sib show "$log_chain")" "$(sib log -1 "$log_chain")" \
 assert_eq "" "$(sib log "$log_chain" 2>&1 >/dev/null)" \
     "log keeps stderr quiet on empty trace and missing content"
 
+long_chain=$(
+    for i in $(seq 300); do
+        printf '{"role":"user","content":"%s"}\n' "$(printf '%02000d' "$i")"
+    done | sib chain-jsonl
+)
+err=$({ sib log "$long_chain" | head -n 1 >/dev/null; } 2>&1) || :
+assert_eq "" "$err" "log stays quiet when the reader closes the pipe"
+
 test_done

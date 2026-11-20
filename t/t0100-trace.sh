@@ -59,7 +59,16 @@ assert_json_eq '{}' "$(trace_json "$empty_trace")" \
 
 expect_input_fail \
     "mktrace rejects duplicate keys" \
-    "$(printf 'content\t%s\ncontent\t%s\n' "$raw_blob" "$raw_blob")" \
+    "$(printf '%s\tcontent\n%s\tcontent\n' "$raw_blob" "$raw_blob")" \
+    sib mktrace
+
+# More duplicates than the pipe holds, so uniq outlives grep -q
+long_key=$(printf 'k%0150d' 0)
+expect_input_fail \
+    "mktrace rejects many duplicate keys" \
+    "$(for i in $(seq 2000); do
+           printf '%s\t%s_%04d\n' "$raw_blob" "$long_key" "$i" "$raw_blob" "$long_key" "$i"
+       done)" \
     sib mktrace
 
 expect_input_fail \
@@ -153,6 +162,14 @@ expect_input_fail \
 #
 # Trace schema and object integrity
 #
+
+dup_tree=$(for i in $(seq 2000); do
+               printf '100644 blob %s\t%s_%04d\n' "$raw_blob" "$long_key" "$i" \
+                   "$raw_blob" "$long_key" "$i"
+           done | sib git mktree)
+expect_fail \
+    "ls-trace rejects many duplicate keys" \
+    sib ls-trace "$dup_tree"
 
 expect_fail \
     "ls-trace rejects a blob object" \
