@@ -15,8 +15,11 @@ jobs:
   lint:
     uses: ./.github/workflows/lint.yml
 
+  lint-doc:
+    uses: ./.github/workflows/lint-doc.yml
+
   release:
-    needs: [test, lint]
+    needs: [test, lint, lint-doc]
     runs-on: ubuntu-latest
     permissions:
       contents: write
