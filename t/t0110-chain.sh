@@ -217,6 +217,28 @@ assert_eq "$(sib show "$log_chain")" "$(sib log -1 "$log_chain")" \
 assert_eq "" "$(sib log "$log_chain" 2>&1 >/dev/null)" \
     "log keeps stderr quiet on empty trace and missing content"
 
+oneline_chain=$(
+    printf '%s\n' \
+        '{"role":"user","content":"\n\n  hi\there\r\nmore"}' \
+        '{"type":"reasoning","summary":"","encrypted_content":"x"}' \
+        '{"type":"reasoning","summary":"**Plan**\n\nrest"}' \
+        '{"type":"function_call","call_id":"c1","name":"bash","content":"{}"}' \
+        '{"type":"function_call_output","call_id":"c1","content":"out"}' \
+        '{"role":"assistant","status":"incomplete","content":"cut"}' \
+        '{}' |
+        sib chain-jsonl
+)
+h=($(sib git rev-list --reverse --abbrev-commit "$oneline_chain"))
+
+assert_eq "${h[0]} message: user: hi here
+${h[1]} reasoning: (no summary)
+${h[2]} reasoning: **Plan**
+${h[3]} function_call: bash({})
+${h[4]} function_call_output: out
+${h[5]} [incomplete] message: assistant: cut
+${h[6]} message" "$(sib log --oneline "$oneline_chain")" \
+    "log --oneline prints \"<type>: <summary>\" per chain"
+
 long_chain=$(
     for i in $(seq 300); do
         printf '{"role":"user","content":"%s"}\n' "$(printf '%02000d' "$i")"

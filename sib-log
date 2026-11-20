@@ -12,17 +12,19 @@ die() {
 
 usage() {
     cat <<EOF
-usage: ${NAME} [-1] [<chain-ish>]
-  -1 Show only <chain-ish>, not its ancestors
-  -h Show this help
+usage: ${NAME} [--oneline] [-1] [<chain-ish>]
+  --oneline  Show each chain as "<hash> <summary>"
+  -1         Show only <chain-ish>, not its ancestors
+  -h         Show this help
 EOF
 }
 
-limit=()
+limit=() oneline=
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -h) usage; exit 0 ;;
         -1) limit=(--max-count=1); shift ;;
+        --oneline) oneline=1; shift ;;
         -*) echo "unknown arg: $1" >&2; usage; exit 1 ;;
         *) break ;;
     esac
@@ -31,6 +33,34 @@ done
 [[ $# -le 1 ]] || { usage >&2; die; }
 target="${1:-HEAD}"
 tid=$(sib rev-parse "$target" 2>/dev/null) || die invalid chain-ish "$target"
+
+if [[ -n $oneline ]]; then
+    # One line per chain, root first
+    sib rev-jsonl "${limit[@]}" "$tid" | jq -n -r \
+        --rawfile ids <(sib rev-list "${limit[@]}" \
+                            --no-commit-header --format=%h "$tid") '
+        # First non-blank line, with tabs and CRs flattened
+        def line1:
+            [split("\n")[] | gsub("[\t\r]"; " ") | sub("^ +| +$"; ""; "g")
+                | select(. != "")] | first // "";
+
+        ($ids | split("\n")) as $ids
+        | foreach inputs as $t (-1; . + 1;
+            ($t.type // "message") as $type
+            | ($t.content // "" | line1) as $body
+            | (if $type == "message" then [$t.role // "", $body]
+               elif $type == "function_call" then
+                  ["\($t.name // "")(\($body))"]
+               elif $type == "reasoning" then
+                  [$t.summary // "" | line1
+                   | if . == "" then "(no summary)" else . end]
+               else [$body] end) as $rest
+            | "\($ids[.]) "
+              + (if $t.status then "[\($t.status)] " else "" end)
+              + ([$type, $rest[]] | map(select(. != "")) | join(": ")))
+    '
+    exit
+fi
 
 # Each chain, separated by "---"
 sib rev-jsonl "${limit[@]}" "$tid" | jq -n -r -j \
