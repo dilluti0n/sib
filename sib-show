@@ -58,4 +58,4 @@ if [[ -n $has_key ]]; then
     exit 0
 fi
 
-exec sib-log -1 "$chain"
+exec sib-log "$chain^!"

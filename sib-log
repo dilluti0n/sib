@@ -12,33 +12,28 @@ die() {
 
 usage() {
     cat <<EOF
-usage: ${NAME} [--oneline] [-1] [<chain-ish>]
+usage: ${NAME} [--oneline] [<range>...]
+  Show the chains in <range> (default HEAD), root first
   --oneline  Show each chain as "<hash> <summary>"
-  -1         Show only <chain-ish>, not its ancestors
   -h         Show this help
 EOF
 }
 
-limit=() oneline=
+oneline=
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -h) usage; exit 0 ;;
-        -1) limit=(--max-count=1); shift ;;
         --oneline) oneline=1; shift ;;
         -*) echo "unknown arg: $1" >&2; usage; exit 1 ;;
         *) break ;;
     esac
 done
 
-[[ $# -le 1 ]] || { usage >&2; die; }
-target="${1:-HEAD}"
-tid=$(sib rev-parse "$target" 2>/dev/null) || die invalid chain-ish "$target"
+[[ $# -gt 0 ]] || set -- HEAD
 
 if [[ -n $oneline ]]; then
-    # One line per chain, root first
-    sib rev-jsonl "${limit[@]}" "$tid" | jq -n -r \
-        --rawfile ids <(sib rev-list "${limit[@]}" \
-                            --no-commit-header --format=%h "$tid") '
+    ids=$(sib rev-list --no-commit-header --format=%h "$@") || exit 1
+    sib rev-jsonl "$@" | jq -n -r --rawfile ids <(printf '%s' "$ids") '
         # First non-blank line, with tabs and CRs flattened
         def line1:
             [split("\n")[] | gsub("[\t\r]"; " ") | sub("^ +| +$"; ""; "g")
@@ -63,8 +58,8 @@ if [[ -n $oneline ]]; then
 fi
 
 # Each chain, separated by "---"
-sib rev-jsonl "${limit[@]}" "$tid" | jq -n -r -j \
-    --rawfile ids <(sib rev-list "${limit[@]}" "$tid") '
+ids=$(sib rev-list "$@") || exit 1
+sib rev-jsonl "$@" | jq -n -r -j --rawfile ids <(printf '%s' "$ids") '
     def rstrip_nl: if endswith("\n") then .[:-1] | rstrip_nl else . end;
 
     ($ids | split("\n")) as $ids

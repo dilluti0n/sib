@@ -211,8 +211,26 @@ assert_eq "chain ${log_ids[2]}
 role: only" "$(sib show "${log_ids[2]}")" \
     "show prints one chain in the log layout"
 
-assert_eq "$(sib show "$log_chain")" "$(sib log -1 "$log_chain")" \
-    "show is log -1"
+assert_eq "$(sib show "$log_chain")" "$(sib log "$log_chain^!")" \
+    "show is log <chain-ish>^!"
+
+assert_eq "chain ${log_ids[2]}
+role: only
+
+
+---
+
+chain ${log_ids[3]}
+$user_turn" "$(sib log "$log_chain~2..$log_chain")" \
+    "log takes a range"
+
+assert_eq "chain ${log_ids[2]}
+chain ${log_ids[3]}" \
+    "$(sib log "^${log_ids[1]}" "$log_chain" | grep '^chain ')" \
+    "log takes several range arguments"
+
+expect_fail "log rejects an invalid range" sib log revision-that-does-not-exist
+expect_fail "log rejects rev-list options" sib log --max-count=1
 
 assert_eq "" "$(sib log "$log_chain" 2>&1 >/dev/null)" \
     "log keeps stderr quiet on empty trace and missing content"

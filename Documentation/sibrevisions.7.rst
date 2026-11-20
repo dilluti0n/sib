@@ -60,7 +60,7 @@ A *<chain-ish>* followed by **:**\ *<key>* names the value of *<key>*
 on that chain, byte for byte. The split is at the first **:** outside
 **@{...}**, so a key may itself contain **:**. Only **show** takes it.
 
-Taken by **ask -p**, **switch**, **save** (target), **log**, **show**,
+Taken by **ask -p**, **switch**, **save** (target), **show**,
 **edit**, **tool pending**, **ls-chain**, **chain-trace -p**,
 **chain-jsonl -p** and the values of **update-ref**.
 
@@ -74,7 +74,8 @@ A *<range>* names a list of chains. It is a *<chain-ish>*,
 *<chain-ish>*; an empty side means HEAD. Arguments starting with **-** are
 passed to **git-rev-list**\ (1) as options.
 
-Taken by **rev-list** and **rev-jsonl**.
+Taken by **rev-list**, **rev-jsonl** and **log**. **log** takes no
+options among them.
 
 Name
 ----

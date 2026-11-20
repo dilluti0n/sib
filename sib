@@ -330,7 +330,7 @@ cmd_rev_list() {
 }
 
 cmd_rev_jsonl() {
-    [[ $# -ge 1 ]] || die 'usage: rev-jsonl [<rev-list-option>...] <chain-ish>'
+    [[ $# -ge 1 ]] || die 'usage: rev-jsonl [<rev-list-option>...] <range>...'
 
     local empty
     empty=$(lgit hash-object -t tree /dev/null) || die
