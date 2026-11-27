@@ -1,0 +1,23 @@
+name: lint-doc
+
+on:
+  push:
+    branches: [master]
+    paths: &paths
+      - 'Documentation/**'
+      - 'Makefile'
+      - '.github/workflows/lint-doc.yml'
+  pull_request:
+    paths: *paths
+  workflow_call:
+
+jobs:
+  rst:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install docutils
+        run: sudo apt-get update && sudo apt-get install -y python3-docutils
+
+      - run: make lint-doc
